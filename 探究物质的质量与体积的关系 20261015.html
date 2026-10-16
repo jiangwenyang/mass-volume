@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>探究物质的质量与体积的关系</title>
+<style>
+:root{
+  --bg:#eef2f8; --card:#fff; --line:#e2e8f0; --text:#1e293b;
+  --muted:#64748b; --primary:#2563eb;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--text);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+header{
+  flex:0 0 auto; display:flex; align-items:center; gap:14px;
+  padding:10px 18px; color:#fff;
+  background:linear-gradient(90deg,#1e3a8a,#2563eb 60%,#3b82f6);
+  box-shadow:0 2px 12px rgba(30,58,138,.25);
+}
+header h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.5px}
+header .sub{font-size:12px;opacity:.8}
+.grow{flex:1}
+.status{
+  display:flex;align-items:center;gap:7px;font-size:12px;
+  background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;white-space:nowrap;
+}
+.status i{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80}
+
+.toolbar{
+  flex:0 0 auto; display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  padding:10px 18px; background:#fff; border-bottom:1px solid var(--line);
+}
+.btn{
+  font:inherit; font-size:14px; padding:8px 16px; border-radius:9px;
+  border:1px solid #cbd5e1; background:#fff; color:#334155;
+  cursor:pointer; transition:.15s; user-select:none; white-space:nowrap;
+}
+.btn:hover{background:#f1f5f9;border-color:#94a3b8}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
+.btn.primary:hover{background:#1d4ed8}
+.hint{font-size:12px;color:var(--muted);margin-left:auto}
+
+.layout{flex:1 1 auto; display:flex; min-height:0}
+.layout.table-mode .left{flex:1 1 100%; min-width:0}
+.layout.table-mode .right{display:none}
+.layout.chart-mode .left{flex:0 0 34%; min-width:280px; max-width:420px}
+.layout.chart-mode .right{flex:1 1 66%; display:flex; min-width:0}
+.layout.wide-mode .left{display:none}
+/* wide-mode 的 right 需要 display:flex，否则汇总图容器高度塌陷 */
+.layout.wide-mode .right{flex:1 1 100%; display:flex}
+.left{overflow-y:auto; padding:12px; transition:.25s}
+.right{min-height:0; flex-direction:column; padding:12px}
+
+.layout.table-mode .grid{grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+.layout.chart-mode .grid{grid-template-columns:1fr; gap:8px}
+@media(max-width:1280px){
+  .layout.table-mode .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:860px){
+  .layout{flex-direction:column; overflow:auto}
+  .layout.table-mode .left,
+  .layout.chart-mode .left,
+  .layout.chart-mode .right{flex:none; min-width:0; max-width:none}
+  .layout.chart-mode .right{height:70vh}
+  .layout.table-mode .grid,
+  .layout.chart-mode .grid{grid-template-columns:1fr}
+}
+.grid{display:grid}
+
+.card{
+  background:#fff; border-radius:12px; padding:10px 11px 11px;
+  box-shadow:0 1px 4px rgba(15,23,42,.07);
+  border:2px solid transparent; transition:.15s;
+}
+.card.active{border-color:var(--primary); box-shadow:0 4px 14px rgba(37,99,235,.22)}
+.card-head{display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap}
+.card-head .dot{width:10px; height:10px; border-radius:50%; flex:0 0 auto}
+.card-head .name{font-size:14px; font-weight:600; color:#334155}
+.card-head .mini{
+  font:inherit; font-size:11px; padding:3px 9px; border-radius:6px;
+  border:1px solid #cbd5e1; background:#f8fafc; color:#475569; cursor:pointer;
+  transition:.15s; white-space:nowrap;
+}
+.card-head .mini:hover{background:#e0e7ff; border-color:#a5b4fc; color:#1e40af}
+.card-head .mini.plot{background:#dbeafe; border-color:#93c5fd; color:#1e40af; font-weight:600}
+.card-head .mini.plot:hover{background:#bfdbfe}
+.card-head .mini.line{background:#dcfce7; border-color:#86efac; color:#166534; font-weight:600}
+.card-head .mini.line:hover{background:#bbf7d0}
+
+table{width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed}
+th{font-size:11px; font-weight:500; color:var(--muted); padding:4px 2px; background:#f8fafc}
+th:first-child{border-radius:6px 0 0 6px}
+th:last-child{border-radius:0 6px 6px 0}
+td{padding:3px 2px; text-align:center; border-top:1px solid #f1f5f9}
+tbody tr:first-child td{border-top:none}
+.zero td{color:#94a3b8; font-size:12px; background:#fbfdff}
+
+/* 列宽：物块 18%、V 26%、m 26%、m/V 30% */
+table th:nth-child(1), table td:nth-child(1){width:18%}
+table th:nth-child(2), table td:nth-child(2){width:26%}
+table th:nth-child(3), table td:nth-child(3){width:26%}
+table th:nth-child(4), table td:nth-child(4){width:30%}
+
+input[type=number]{
+  width:100%; font:inherit; font-size:13px; text-align:center;
+  padding:5px 3px; border:1px solid #e2e8f0; border-radius:6px;
+  background:#f8fafc; color:#0f172a;
+}
+input[type=number]:focus{
+  outline:none; border-color:var(--primary); background:#fff;
+  box-shadow:0 0 0 2px rgba(37,99,235,.15);
+}
+
+/* ===== m/V 栏：适度加宽 + 着重显示 ===== */
+th.col-ratio{
+  color:#b91c1c;
+  font-weight:700;
+  font-size:12px;
+  background:#fee2e2;
+}
+td.cell-ratio{
+  background:#fef2f2;
+  border-left:1px solid #fecaca;
+  border-right:1px solid #fecaca;
+}
+.ratio{
+  font-size:16px;
+  color:#b91c1c;
+  font-weight:800;
+  letter-spacing:.3px;
+  padding:3px 2px;
+  display:block;
+}
+
+.layout.table-mode .card{padding:12px 14px 14px}
+.layout.table-mode .card-head .name{font-size:15px}
+.layout.table-mode table{font-size:14px}
+.layout.table-mode input[type=number]{font-size:14px; padding:7px 4px}
+.layout.table-mode th{font-size:12px; padding:6px 3px}
+.layout.table-mode td{padding:5px 3px}
+.layout.table-mode .ratio{font-size:18px}
+.layout.table-mode th.col-ratio{font-size:13px}
+.layout.table-mode .card-head .mini{font-size:12px; padding:4px 12px}
+
+.view{display:none; flex:1; min-height:0}
+.view.active{display:flex; flex-direction:column}
+#viewAll.active{display:block; overflow-y:auto; padding-right:2px}
+#viewSummary.active{display:flex; flex-direction:column}
+
+.chart-card{
+  flex:1; min-height:0; display:flex; flex-direction:column;
+  background:#fff; border-radius:12px;
+  box-shadow:0 1px 4px rgba(15,23,42,.07);
+  padding:8px 10px 4px;
+}
+.chart-head{display:flex; align-items:center; gap:8px; padding:0 2px 4px}
+.chart-head .dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto}
+.chart-head h3{margin:0; font-size:14px; font-weight:600; color:#334155}
+.tag{font-size:11px; color:#fff; background:var(--primary); padding:2px 9px; border-radius:999px; white-space:nowrap}
+.canvas-wrap{position:relative; flex:1; min-height:0}
+.canvas-wrap canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.legend{display:flex; flex-wrap:wrap; gap:3px 14px; padding:3px 6px 4px; font-size:12px; color:#475569; min-height:18px}
+.legend .lg{display:flex; align-items:center; gap:5px}
+.legend .lg i{width:9px; height:9px; border-radius:50%; display:inline-block}
+
+.mini-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+.mini-grid .chart-card{height:260px; flex:none}
+@media(max-width:1100px){ .mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:640px){ .mini-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>探究物质的质量与体积的关系</h1>
+  <span class="sub">m – V 图像 · 分组实验</span>
+  <span class="grow"></span>
+  <div class="status"><i></i><span>本地数据 · 自动保存</span></div>
+</header>
+
+<div class="toolbar">
+  <button class="btn primary" id="btnBack">🔙 返回数据表</button>
+  <button class="btn" id="btnPlot">📍 描点</button>
+  <button class="btn" id="btnLine">📈 生成该组图像</button>
+  <button class="btn" id="btnAll">🔍 显示所有组图像</button>
+  <button class="btn" id="btnSummary">📊 汇总</button>
+  <span class="hint" id="hint">直接在表格中填写数据，点击各组的「描点」或「生成图像」按钮</span>
+</div>
+
+<div class="layout table-mode" id="layout">
+  <aside class="left" id="leftPanel">
+    <div class="grid" id="tables"></div>
+  </aside>
+
+  <section class="right" id="rightPanel">
+    <div class="view" id="viewSingle">
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3 id="singleTitle">第1组 m–V 图像</h3>
+          <span class="tag" id="singleTag">等待操作</span>
+        </div>
+        <div class="canvas-wrap"><canvas id="singleCanvas"></canvas></div>
+        <div class="legend" id="singleLegend"></div>
+      </div>
+    </div>
+
+    <div class="view" id="viewAll">
+      <div class="mini-grid" id="miniGrid"></div>
+    </div>
+
+    <div class="view" id="viewSummary">
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>m–V 汇总图</h3>
+          <span class="tag" style="background:#0891b2">全部小组</span>
+        </div>
+        <div class="canvas-wrap"><canvas id="summaryCanvas"></canvas></div>
+        <div class="legend" id="summaryLegend"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var COLORS = ['#e53935','#fb8c00','#8fbc2a','#00897b','#00acc1',
+              '#1e88e5','#8e24aa','#d81b60','#6d4c41'];
+var V_DEFAULT = [0, 6, 8, 10, 12];
+var M_DEFAULT = [
+  [0, 50.4, 67.4, 84.4, 100.6],
+  [0, 50.4, 67.4, 84.4, 100.6],
+  [0, 50.4, 67.4, 84.4, 100.6],
+  [0, 46.6, 62.2, 77.2, 93.2],
+  [0, 46.6, 62.2, 77.2, 93.2],
+  [0, 46.4, 62.0, 77.2, 93.2],
+  [0, 17.0, 22.0, 27.4, 32.4],
+  [0, 16.8, 21.8, 27.0, 32.6],
+  [0, 17.0, 21.6, 27.2, 32.4]
+];
+var ROW_COUNT = 5;
+var FONT = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+var LS_KEY = 'mv_relation_state_v32';
+
+var COMMON_MAX_X = 14;
+var COMMON_MAX_Y = 110;
+
+var state = { groups: [] };
+for (var gi = 0; gi < 9; gi++) {
+  var rows = [];
+  for (var ri = 0; ri < ROW_COUNT; ri++) {
+    rows.push({ V: V_DEFAULT[ri], m: M_DEFAULT[gi][ri] });
+  }
+  state.groups.push({ rows: rows });
+}
+
+var view = {
+  mode: 'table',
+  active: 0,
+  shown: [0,0,0,0,0,0,0,0,0],
+  line:  [false,false,false,false,false,false,false,false,false]
+};
+
+var animTimer = null;
+/* 辅助线列表：描点和生成图像时，每个点的辅助线都保留 */
+var guides = [];
+/* 记录 guides 中已包含的组号，用于判断是否需要清空 */
+var guidesGroup = -1;
+
+var layoutEl    = document.getElementById('layout');
+var tablesEl    = document.getElementById('tables');
+var singleCv    = document.getElementById('singleCanvas');
+var summaryCv   = document.getElementById('summaryCanvas');
+
+function fmt(v){
+  if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+  return String(Math.round(v * 100) / 100);
+}
+function niceScale(maxVal, ticks){
+  if (!(maxVal > 0)) return { max:1, step:0.2 };
+  var raw  = maxVal / ticks;
+  var exp  = Math.floor(Math.log(raw) / Math.LN10);
+  var base = Math.pow(10, exp);
+  var n = raw / base;
+  var s = n <= 1 ? 1 : n <= 1.5 ? 1.5 : n <= 2 ? 2 : n <= 2.5 ? 2.5 :
+          n <= 3 ? 3 : n <= 4 ? 4 : n <= 5 ? 5 : n <= 6 ? 6 : n <= 8 ? 8 : 10;
+  var step = s * base;
+  return { max: Math.ceil(maxVal / step - 1e-9) * step, step: step };
+}
+function fitK(pts){
+  var sxy = 0, sxx = 0;
+  for (var i = 0; i < pts.length; i++){
+    sxy += pts[i].x * pts[i].y;
+    sxx += pts[i].x * pts[i].x;
+  }
+  return sxx > 0 ? sxy / sxx : 0;
+}
+function pointsOf(g){
+  var out = [];
+  state.groups[g].rows.forEach(function(r){
+    if (r.V > 0 && r.m > 0) out.push({ x:r.V, y:r.m });
+  });
+  return out;
+}
+function seriesFor(g, limit, withLine){
+  var pts = pointsOf(g);
+  if (limit != null && limit < pts.length) pts = pts.slice(0, limit);
+  return { name:'第'+(g+1)+'组', color:COLORS[g], points:pts, line:!!withLine };
+}
+function clearAndHint(canvas, text, small){
+  var rect = canvas.getBoundingClientRect();
+  var W = Math.floor(rect.width), H = Math.floor(rect.height);
+  if (W < 30 || H < 30) return;
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = (small ? '12px ' : '14px ') + FONT;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var lines = text.split('\n');
+  var lh = small ? 18 : 22;
+  var startY = H / 2 - (lines.length - 1) * lh / 2;
+  lines.forEach(function(line, i){
+    ctx.fillText(line, W / 2, startY + i * lh);
+  });
+}
+
+function drawChart(canvas, series, opts){
+  opts = opts || {};
+  var rect = canvas.getBoundingClientRect();
+  var W = Math.floor(rect.width), H = Math.floor(rect.height);
+  if (W < 30 || H < 30) return;
+
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  var small = !!opts.small;
+  var pad = small ? { l:38, r:12, t:12, b:28 }
+                  : { l:58, r:22, t:18, b:42 };
+  var pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  if (pw < 20 || ph < 20) return;
+
+  var sx = niceScale(COMMON_MAX_X, small ? 5 : 8);
+  var sy = niceScale(COMMON_MAX_Y, small ? 5 : 8);
+  var X = function(v){ return pad.l + v / sx.max * pw; };
+  var Y = function(v){ return pad.t + ph - v / sy.max * ph; };
+
+  var hasAnyPoint = false;
+  series.forEach(function(s){ if (s.points.length) hasAnyPoint = true; });
+  if (!hasAnyPoint){
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = (small ? '12px ' : '14px ') + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(opts.emptyText || '暂无数据', W / 2, H / 2);
+    return;
+  }
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#eef2f7';
+  ctx.font = (small ? '10px ' : '11px ') + FONT;
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (var y = 0; y <= sy.max + 1e-9; y += sy.step){
+    var yy = Y(y);
+    ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(pad.l + pw, yy); ctx.stroke();
+    ctx.fillText(fmt(y), pad.l - 6, yy);
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (var x = 0; x <= sx.max + 1e-9; x += sx.step){
+    var xx = X(x);
+    ctx.beginPath(); ctx.moveTo(xx, pad.t); ctx.lineTo(xx, pad.t + ph); ctx.stroke();
+    ctx.fillText(fmt(x), xx, pad.t + ph + 6);
+  }
+
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t);
+  ctx.lineTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  if (!small){
+    ctx.fillStyle = '#475569';
+    ctx.font = '12px ' + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('V / cm³', pad.l + pw / 2, pad.t + ph + 20);
+    ctx.save();
+    ctx.translate(14, pad.t + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('m / g', 0, 0);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.l - 8, pad.t - 8, pw + 16, ph + 16);
+  ctx.clip();
+
+  /* 绘制所有辅助线（每个点都保留） */
+  if (opts.guides && opts.guides.length){
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1.3;
+    for (var k = 0; k < opts.guides.length; k++){
+      var gd = opts.guides[k];
+      var gx = X(gd.x), gy = Y(gd.y);
+      ctx.strokeStyle = gd.color;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, pad.t + ph); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(pad.l, gy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = gd.color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath(); ctx.arc(gx, pad.t + ph, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(pad.l, gy, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.setLineDash([5, 5]);
+    }
+    ctx.restore();
+  }
+
+  series.forEach(function(s){
+    if (!s.line || s.points.length < 2) return;
+    var k = fitK(s.points);
+    if (!(k > 0)) return;
+    var xEnd = sx.max;
+    if (k * xEnd > sy.max) xEnd = sy.max / k;
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(0));
+    ctx.lineTo(X(xEnd), Y(k * xEnd));
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = small ? 1.6 : 2;
+    ctx.globalAlpha = 0.75;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  series.forEach(function(s, si){
+    s.points.forEach(function(p, pi){
+      var isLast = opts.highlightLast && si === series.length - 1 &&
+                   pi === s.points.length - 1;
+      if (isLast){
+        ctx.beginPath();
+        ctx.arc(X(p.x), Y(p.y), 10, 0, Math.PI*2);
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = 0.18;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(p.y), small ? 3.5 : 4.8, 0, Math.PI*2);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    });
+  });
+
+  ctx.restore();
+
+  /* ===== 在坐标轴旁显示每个描点的值（仅单组模式，且不缩小） ===== */
+  if (opts.showValues && !small && opts.guides && opts.guides.length){
+    ctx.save();
+    ctx.font = 'bold 12px ' + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (var m = 0; m < opts.guides.length; m++){
+      var g2 = opts.guides[m];
+      var px = X(g2.x), py = Y(g2.y);
+
+      /* 横轴上的值：V */
+      var vText = fmt(g2.x);
+      var vW = ctx.measureText(vText).width;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = g2.color;
+      ctx.lineWidth = 1;
+      roundRect(ctx, px - vW / 2 - 4, pad.t + ph + 15, vW + 8, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = g2.color;
+      ctx.fillText(vText, px, pad.t + ph + 18);
+
+      /* 纵轴上的值：m */
+      ctx.save();
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      var mText = fmt(g2.y);
+      var mW = ctx.measureText(mText).width;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = g2.color;
+      ctx.lineWidth = 1;
+      roundRect(ctx, pad.l - 8 - mW - 10, py - 9, mW + 10, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = g2.color;
+      ctx.fillText(mText, pad.l - 12, py);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+/* 圆角矩形辅助函数 */
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawSingle(){
+  var g = view.active;
+  var allPts = pointsOf(g);
+  var n = Math.min(view.shown[g], allPts.length);
+  var hasContent = (n > 0) || view.line[g];
+
+  document.getElementById('singleTitle').textContent = '第' + (g + 1) + '组 m–V 图像';
+  var tag = document.getElementById('singleTag');
+
+  if (!hasContent){
+    tag.textContent = '等待操作';
+    clearAndHint(singleCv, '点击「描点」或「生成该组图像」');
+    document.getElementById('singleLegend').innerHTML = '';
+    return;
+  }
+
+  if (view.line[g] && n >= allPts.length) tag.textContent = '图像已生成';
+  else if (n > 0) tag.textContent = '描点 ' + n + ' / ' + allPts.length;
+  else tag.textContent = '等待操作';
+
+  var s = seriesFor(g, n, view.line[g]);
+  var opts = {
+    axisPoints: allPts,
+    highlightLast: animTimer !== null,
+    emptyText: '该组暂无数据',
+    showValues: true            /* 在坐标轴旁显示当前组每个点的值 */
+  };
+  if (guides.length && guidesGroup === g){
+    opts.guides = guides;
+  }
+  drawChart(singleCv, [s], opts);
+  renderLegend('singleLegend', [s]);
+}
+
+function drawAllMinis(){
+  for (var g = 0; g < 9; g++){
+    var cv = document.getElementById('miniCanvas' + g);
+    if (!cv) continue;
+    drawChart(cv, [seriesFor(g, null, true)], {
+      small: true,
+      axisPoints: pointsOf(g),
+      emptyText: '无数据'
+    });
+  }
+}
+
+function drawSummary(){
+  var list = [], axisPts = [];
+  for (var g = 0; g < 9; g++){
+    var pts = pointsOf(g);
+    if (!pts.length) continue;
+    list.push(seriesFor(g, null, true));
+    axisPts = axisPts.concat(pts);
+  }
+  drawChart(summaryCv, list, {
+    axisPoints: axisPts,
+    emptyText: '暂无数据，请先在表格中填写数据'
+  });
+  renderLegend('summaryLegend', list);
+}
+
+function redrawCurrent(){
+  if (view.mode === 'summary') drawSummary();
+  else if (view.mode === 'all') drawAllMinis();
+  else drawSingle();
+}
+
+function renderLegend(id, list){
+  var box = document.getElementById(id);
+  if (!box) return;
+  var items = list.filter(function(s){ return s.points.length > 0; });
+  box.innerHTML = items.map(function(s){
+    var k = fitK(s.points);
+    return '<span class="lg"><i style="background:' + s.color + '"></i>' +
+           s.name + (s.line && k > 0 ? '（ρ≈' + k.toFixed(2) + ' g/cm³）' : '') +
+           '</span>';
+  }).join('');
+}
+
+function buildTables(){
+  var html = '';
+  for (var g = 0; g < 9; g++){
+    var rowsHtml = '';
+    for (var r = 0; r < ROW_COUNT; r++){
+      var isZero = (r === 0);
+      rowsHtml += '<tr' + (isZero ? ' class="zero"' : '') + '>' +
+        '<td>' + r + '</td>' +
+        '<td><input type="number" inputmode="decimal" step="0.1" min="0" ' +
+             'data-g="' + g + '" data-r="' + r + '" data-f="V"></td>' +
+        '<td><input type="number" inputmode="decimal" step="0.1" min="0" ' +
+             'data-g="' + g + '" data-r="' + r + '" data-f="m"></td>' +
+        '<td class="cell-ratio"><span class="ratio" data-ratio="' + g + '-' + r + '">—</span></td>' +
+        '</tr>';
+    }
+    html += '<div class="card" data-group="' + g + '">' +
+      '<div class="card-head">' +
+        '<span class="dot" style="background:' + COLORS[g] + '"></span>' +
+        '<span class="name">第' + (g + 1) + '组</span>' +
+        '<button class="mini plot" data-plot="' + g + '">描点</button>' +
+        '<button class="mini line" data-line="' + g + '">生成图像</button>' +
+      '</div>' +
+      '<table>' +
+        '<thead><tr>' +
+          '<th>物块</th>' +
+          '<th>V/cm³</th>' +
+          '<th>m/g</th>' +
+          '<th class="col-ratio">m/V (g/cm³)</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rowsHtml + '</tbody>' +
+      '</table>' +
+    '</div>';
+  }
+  tablesEl.innerHTML = html;
+}
+
+function buildMinis(){
+  var html = '';
+  for (var g = 0; g < 9; g++){
+    html += '<div class="chart-card">' +
+      '<div class="chart-head">' +
+        '<span class="dot" style="background:' + COLORS[g] + '"></span>' +
+        '<h3>第' + (g + 1) + '组</h3>' +
+      '</div>' +
+      '<div class="canvas-wrap"><canvas id="miniCanvas' + g + '"></canvas></div>' +
+    '</div>';
+  }
+  document.getElementById('miniGrid').innerHTML = html;
+}
+
+function updateComputed(g){
+  var gd = state.groups[g];
+  var card = tablesEl.children[g];
+  if (!card) return;
+  for (var r = 0; r < ROW_COUNT; r++){
+    var row = gd.rows[r];
+    var cell = card.querySelector('[data-ratio="' + g + '-' + r + '"]');
+    if (cell){
+      if (row.V > 0 && row.m > 0) cell.textContent = (row.m / row.V).toFixed(2);
+      else cell.textContent = '—';
+    }
+  }
+}
+
+function renderAll(){
+  state.groups.forEach(function(gd, g){
+    var card = tablesEl.children[g];
+    if (!card) return;
+    gd.rows.forEach(function(row, r){
+      var iv = card.querySelector('input[data-g="' + g + '"][data-r="' + r + '"][data-f="V"]');
+      var im = card.querySelector('input[data-g="' + g + '"][data-r="' + r + '"][data-f="m"]');
+      if (iv && document.activeElement !== iv) iv.value = row.V;
+      if (im && document.activeElement !== im) im.value = row.m;
+    });
+    updateComputed(g);
+  });
+  updateActiveCard();
+}
+
+function updateActiveCard(){
+  var cards = tablesEl.querySelectorAll('.card');
+  for (var i = 0; i < cards.length; i++){
+    cards[i].classList.toggle('active', i === view.active);
+  }
+}
+
+function switchView(mode){
+  if (animTimer){ clearInterval(animTimer); animTimer = null; }
+  view.mode = mode;
+
+  /* 非单组视图时清空辅助线 */
+  if (mode !== 'single'){ guides = []; guidesGroup = -1; }
+
+  layoutEl.classList.remove('table-mode', 'chart-mode', 'wide-mode');
+  if (mode === 'table') layoutEl.classList.add('table-mode');
+  else if (mode === 'single') layoutEl.classList.add('chart-mode');
+  else layoutEl.classList.add('wide-mode');
+
+  var singleEl  = document.getElementById('viewSingle');
+  var allEl     = document.getElementById('viewAll');
+  var summaryEl = document.getElementById('viewSummary');
+
+  singleEl.classList.remove('active');
+  allEl.classList.remove('active');
+  summaryEl.classList.remove('active');
+
+  if (mode === 'single' || mode === 'table') singleEl.classList.add('active');
+  else if (mode === 'all') allEl.classList.add('active');
+  else if (mode === 'summary') summaryEl.classList.add('active');
+
+  document.getElementById('btnBack').style.display = (mode === 'table') ? 'none' : '';
+
+  var paint = function(){
+    if (mode === 'single' || mode === 'table') drawSingle();
+    else if (mode === 'all') drawAllMinis();
+    else if (mode === 'summary') drawSummary();
+  };
+  paint();
+  requestAnimationFrame(function(){ requestAnimationFrame(paint); });
+  setTimeout(paint, 80);
+  setTimeout(paint, 300);
+}
+
+/* ============ 描点：慢速，逐个点出现，辅助线全部保留 ============ */
+function startPlot(g){
+  if (animTimer){ clearInterval(animTimer); animTimer = null; }
+  view.active = g;
+  updateActiveCard();
+
+  var pts = pointsOf(g);
+  view.shown[g] = 0;
+  view.line[g] = false;
+  guides = [];
+  guidesGroup = g;
+
+  switchView('single');
+
+  if (!pts.length){
+    drawSingle();
+    alert('第' + (g + 1) + '组还没有有效数据（V>0 且 m>0）。');
+    return;
+  }
+
+  view.shown[g] = 1;
+  guides.push({ x: pts[0].x, y: pts[0].y, color: COLORS[g] });
+  drawSingle();
+
+  var i = 1;
+  if (i >= pts.length) return;
+
+  animTimer = setInterval(function(){
+    i++;
+    view.shown[g] = i;
+    guides.push({ x: pts[i - 1].x, y: pts[i - 1].y, color: COLORS[g] });
+    drawSingle();
+    if (i >= pts.length){
+      if (animTimer){ clearInterval(animTimer); animTimer = null; }
+    }
+  }, 1100);
+}
+
+/* ============ 生成图像：保留已描点的辅助线，快速补全 + 拟合直线 ============ */
+function genLine(g){
+  if (animTimer){ clearInterval(animTimer); animTimer = null; }
+  view.active = g;
+  updateActiveCard();
+
+  var pts = pointsOf(g);
+  if (!pts.length){
+    guides = [];
+    guidesGroup = -1;
+    switchView('single');
+    alert('第' + (g + 1) + '组还没有有效数据（V>0 且 m>0）。');
+    return;
+  }
+
+  if (guidesGroup !== g){
+    guides = [];
+    guidesGroup = g;
+    view.shown[g] = 0;
+  }
+
+  switchView('single');
+
+  var startIdx = Math.min(view.shown[g], pts.length);
+
+  if (startIdx === 0){
+    view.shown[g] = 1;
+    guides.push({ x: pts[0].x, y: pts[0].y, color: COLORS[g] });
+    drawSingle();
+    startIdx = 1;
+  }
+
+  var i = startIdx;
+  if (i >= pts.length){
+    view.line[g] = true;
+    view.shown[g] = pts.length;
+    drawSingle();
+    return;
+  }
+
+  animTimer = setInterval(function(){
+    i++;
+    view.shown[g] = i;
+    guides.push({ x: pts[i - 1].x, y: pts[i - 1].y, color: COLORS[g] });
+    drawSingle();
+    if (i >= pts.length){
+      if (animTimer){ clearInterval(animTimer); animTimer = null; }
+      view.line[g] = true;
+      drawSingle();
+    }
+  }, 350);
+}
+
+tablesEl.addEventListener('input', function(e){
+  var inp = e.target;
+  if (!inp.dataset || inp.dataset.f === undefined) return;
+  var g = +inp.dataset.g, r = +inp.dataset.r, f = inp.dataset.f;
+  var val = parseFloat(inp.value);
+  if (!isFinite(val) || val < 0) val = 0;
+  state.groups[g].rows[r][f] = val;
+  updateComputed(g);
+  redrawCurrent();
+  saveLocal();
+});
+
+tablesEl.addEventListener('click', function(e){
+  var plotBtn = e.target.closest ? e.target.closest('[data-plot]') : null;
+  if (plotBtn){
+    startPlot(+plotBtn.dataset.plot);
+    return;
+  }
+  var lineBtn = e.target.closest ? e.target.closest('[data-line]') : null;
+  if (lineBtn){
+    genLine(+lineBtn.dataset.line);
+    return;
+  }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+  var card = e.target.closest ? e.target.closest('.card') : null;
+  if (card && card.dataset.group !== undefined){
+    view.active = +card.dataset.group;
+    updateActiveCard();
+    switchView('single');
+  }
+});
+
+document.getElementById('btnBack').addEventListener('click', function(){
+  switchView('table');
+});
+document.getElementById('btnPlot').addEventListener('click', function(){
+  startPlot(view.active);
+});
+document.getElementById('btnLine').addEventListener('click', function(){
+  genLine(view.active);
+});
+document.getElementById('btnAll').addEventListener('click', function(){
+  switchView('all');
+});
+document.getElementById('btnSummary').addEventListener('click', function(){
+  switchView('summary');
+});
+
+var rzTimer = null;
+window.addEventListener('resize', function(){
+  clearTimeout(rzTimer);
+  rzTimer = setTimeout(redrawCurrent, 120);
+});
+
+function saveLocal(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e){}
+}
+function loadLocal(){
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (!obj || !obj.groups || obj.groups.length !== 9) return null;
+    obj.groups.forEach(function(gd){
+      if (!gd.rows || gd.rows.length !== ROW_COUNT){
+        var rows = [];
+        for (var i = 0; i < ROW_COUNT; i++){
+          var old = (gd.rows && gd.rows[i]) ? gd.rows[i] : { V:0, m:0 };
+          rows.push({ V: old.V || 0, m: old.m || 0 });
+        }
+        gd.rows = rows;
+      }
+    });
+    return obj;
+  } catch (e){ return null; }
+}
+
+buildTables();
+buildMinis();
+
+var saved = loadLocal();
+if (saved) state = saved;
+
+renderAll();
+switchView('table');
+
+window.addEventListener('load', function(){
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){ redrawCurrent(); });
+  });
+  setTimeout(redrawCurrent, 250);
+});
+
+})();
+</script>
+</body>
+</html>
