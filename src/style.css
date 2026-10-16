@@ -2,7 +2,8 @@
 
 /* 晴空蓝：冷白底、纯白卡片、亮蓝主色、珊瑚红只给 m/V。全程不画描边，靠底色和投影分层。 */
 @theme {
-  --font-sans: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* 拉丁字母与数字用 Times New Roman，中文回落到苹方 / 微软雅黑 */
+  --font-sans: "Times New Roman", Times, "PingFang SC", "Microsoft YaHei", serif;
   --color-paper: #f3f7ff;
   --color-sheet: #ffffff;
   --color-soft: #edf2fd;

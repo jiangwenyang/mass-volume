@@ -1,0 +1,20 @@
+[package]
+name = "physics-lab-web"
+version = "0.1.0"
+description = "探究物质的质量与体积的关系（网页部署版服务）"
+authors = ["physics-lab"]
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "physics-lab-web"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+axum = { version = "0.8", features = ["json", "macros", "ws"] }
+futures-util = "0.3"
+include_dir = "0.7"
+if-addrs = "0.13"

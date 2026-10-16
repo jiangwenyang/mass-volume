@@ -1,0 +1,19 @@
+# 网页部署：docker compose up -d --build
+# 教师页 http://<服务器地址>:3780/ ，学生页 http://<服务器地址>:3780/s
+services:
+  web:
+    build: .
+    image: physics-lab-web
+    # 容器里服务不是 1 号进程，docker stop 能立刻结束它
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3780}:3780"
+    environment:
+      # 学生二维码用的主机名或 IP，多个用逗号分隔。留空时用老师打开教师页时的地址
+      PUBLIC_HOST: ${PUBLIC_HOST:-}
+    volumes:
+      - data:/data
+
+volumes:
+  data:

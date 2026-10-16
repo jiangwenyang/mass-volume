@@ -104,13 +104,13 @@ const confirmRemove = (): void => {
         <thead>
           <tr class="text-muted">
             <th class="sticky top-0 z-10 w-[14%] bg-sheet font-medium" :class="large ? 'py-3 text-base' : 'py-2 text-xs'">物块</th>
-            <th class="sticky top-0 z-10 w-[24%] bg-sheet font-medium" :class="large ? 'py-3 text-base' : 'py-2 text-xs'">V / cm³</th>
-            <th class="sticky top-0 z-10 w-[24%] bg-sheet font-medium" :class="large ? 'py-3 text-base' : 'py-2 text-xs'">m / g</th>
+            <th class="sticky top-0 z-10 w-[24%] bg-sheet font-medium" :class="large ? 'py-3 text-base' : 'py-2 text-xs'">V (cm³)</th>
+            <th class="sticky top-0 z-10 w-[24%] bg-sheet font-medium" :class="large ? 'py-3 text-base' : 'py-2 text-xs'">m (g)</th>
             <th
-              class="sticky top-0 z-10 bg-sheet font-bold text-result"
+              class="sticky top-0 z-10 bg-sheet font-bold whitespace-nowrap text-result"
               :class="large ? 'py-3 text-base' : 'py-2 text-xs'"
             >
-              m / V
+              m/V (g/cm³)
             </th>
             <th class="sticky top-0 z-10 bg-sheet" :class="large ? 'w-14 py-3' : 'w-10 py-2'" />
           </tr>

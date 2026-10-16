@@ -48,4 +48,24 @@ npm run tauri build
 
 `target` 是本地构建产物，不用放进仓库。
 
+## 网页部署（Docker）
+
+不装客户端，也可以把服务跑在一台常开的机器上，老师用浏览器打开教师页。
+
+```bash
+docker compose up -d --build
+```
+
+- 教师页：`http://<服务器地址>:3780/`，学生页：`http://<服务器地址>:3780/s`。
+- 数据存在 Docker 卷 `data` 里（容器内 `/data/state.json`），重建容器不丢。
+- 换端口：`PORT=8080 docker compose up -d`。
+- 二维码地址：默认用老师打开教师页时的地址，所以老师要用局域网 IP 或域名打开，不要用 `localhost`。需要固定时设置 `PUBLIC_HOST`，多个用逗号分隔，例如 `PUBLIC_HOST=192.168.1.10 docker compose up -d`。
+
+服务代码和客户端是同一份：`web-server/` 只是一个入口，直接引用 `src-tauri/src/server.rs` 与 `state.rs`，前端打包后嵌进二进制。本机不用 Docker 也能跑：
+
+```bash
+npm run build
+cd web-server && cargo run --release
+```
+
 仓库：[github.com/jiangwenyang/mass-volume](https://github.com/jiangwenyang/mass-volume)。推到 `main`，或在 GitHub 上手动运行「构建安装包」，会在 Apple Silicon、Intel Mac 和 Windows 上打包。到该次 Actions 运行底部的 Artifacts 下载。只有推送 `v*` 标签才会发 GitHub Release。

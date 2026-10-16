@@ -168,6 +168,10 @@ fn write_debug_port(port: u16) {
 fn print_urls(port: u16) {
     println!("实验服务已监听 0.0.0.0:{port}");
     let ips = lan_ips();
+    if ips.is_empty() && std::env::var_os("PUBLIC_HOST").is_some() {
+        println!("没有设置 PUBLIC_HOST，二维码使用老师打开教师页时的地址，学生页在 /s");
+        return;
+    }
     if ips.is_empty() {
         println!("没有发现局域网地址。学生页: http://127.0.0.1:{port}/s");
         return;
@@ -177,8 +181,17 @@ fn print_urls(port: u16) {
     }
 }
 
-/// 列出本机非回环的 IPv4 地址。
+/// 列出学生可以访问的地址。设置了 `PUBLIC_HOST` 时只用它（逗号分隔，可以为空），
+/// 否则列出本机非回环的 IPv4 地址。容器里探测到的是容器内网地址，平板连不上。
 fn lan_ips() -> Vec<String> {
+    if let Ok(value) = std::env::var("PUBLIC_HOST") {
+        return value
+            .split(',')
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
     let mut ips = Vec::new();
     let Ok(ifaces) = if_addrs::get_if_addrs() else {
         return ips;

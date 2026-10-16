@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+dist
+docs
+.server-port
+.DS_Store
+src-tauri/target
+src-tauri/gen
+web-server/target

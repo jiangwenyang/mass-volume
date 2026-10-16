@@ -315,6 +315,15 @@ export const useRoom = () => {
 }
 
 /**
+ * 教师页自己的主机名。服务没有报出地址时（网页部署），平板用它加入。
+ * @returns 主机名；本机回环地址对平板无用，返回空串
+ */
+export const pageHost = (): string => {
+  const host = location.hostname
+  return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(host) ? '' : host
+}
+
+/**
  * 拼出平板要打开的学生页地址。
  * @param ip - 局域网 IPv4
  * @returns 带当前页面端口的学生页链接

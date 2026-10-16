@@ -7,7 +7,7 @@ import GroupSettingsDialog from '../components/GroupSettingsDialog.vue'
 import GroupTable from '../components/GroupTable.vue'
 import JoinedRail from '../components/JoinedRail.vue'
 import TeacherToolbar from '../components/TeacherToolbar.vue'
-import { joinUrl, useRoom } from '../composables/useRoom'
+import { joinUrl, pageHost, useRoom } from '../composables/useRoom'
 import { usePlot } from '../composables/usePlot'
 import { colorFor, pointsOf, rowFilled } from '../lib/lab'
 import type { Group } from '../types'
@@ -44,7 +44,7 @@ const hint = ref('')
 const groups = computed(() => room.value?.groups ?? [])
 const active = computed(() => groups.value.find((group) => group.id === activeId.value) ?? groups.value[0])
 const activeColor = computed(() => colorFor(Math.max(groups.value.findIndex((group) => group.id === active.value?.id), 0)))
-const primaryIp = computed(() => info.value.ips[0] ?? '')
+const primaryIp = computed(() => info.value.ips[0] ?? pageHost())
 const url = computed(() => (primaryIp.value ? joinUrl(primaryIp.value) : ''))
 const joinedTotal = computed(() => Object.values(joined.value).filter((count) => count > 0).length)
 const hasAnyData = computed(() => groups.value.some((group) => group.rows.some(rowFilled)))

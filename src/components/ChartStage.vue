@@ -107,7 +107,7 @@ const summaryOptions = computed(() => ({
 const legendLabel = (item: Series): string => {
   const slope = fitK(item.points)
   if (!item.line || !(slope > 0)) return item.name
-  return `${item.name}（ρ≈${slope.toFixed(2)} g/cm³）`
+  return `${item.name}（ρ≈${slope.toFixed(2)} (g/cm³)）`
 }
 </script>
 
@@ -117,23 +117,23 @@ const legendLabel = (item: Series): string => {
       <span class="grid size-6 shrink-0 place-items-center rounded-full" :style="{ background: tint(colorFor(activeIndex), 0.18) }" aria-hidden="true">
         <i class="size-2.5 rounded-full" :style="{ background: colorFor(activeIndex) }" />
       </span>
-      <h3 class="text-lg font-bold text-ink">{{ active?.name }} <span class="font-medium text-muted">m–V 图像</span></h3>
+      <h3 class="text-xl font-bold text-ink">{{ active?.name }} <span class="font-medium text-muted">m–V 图像</span></h3>
       <span
-        class="ml-auto inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold"
+        class="ml-auto inline-flex h-8 items-center rounded-full px-3.5 text-base font-semibold"
         :class="singleTag === '图像已生成' ? 'bg-live-soft text-live' : singleTag === '等待操作' ? 'bg-soft text-muted' : 'bg-primary-soft text-primary'"
       >
         {{ singleTag }}
       </span>
     </header>
     <ChartCanvas :series="singleSeries" :options="singleOptions" />
-    <div class="mt-3 flex flex-wrap gap-2 text-sm">
+    <div class="mt-3 flex flex-wrap gap-2 text-base">
       <span
         v-for="item in singleSeries.filter((entry) => entry.points.length)"
         :key="item.name"
-        class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-medium text-ink"
+        class="inline-flex h-8 items-center gap-2 rounded-full px-3.5 font-medium text-ink"
         :style="{ background: tint(item.color, 0.14) }"
       >
-        <i class="size-2 rounded-full" :style="{ background: item.color }" />
+        <i class="size-2.5 rounded-full" :style="{ background: item.color }" />
         {{ legendLabel(item) }}
       </span>
     </div>
@@ -145,7 +145,7 @@ const legendLabel = (item: Series): string => {
         <span class="grid size-5 shrink-0 place-items-center rounded-full" :style="{ background: tint(colorFor(index), 0.18) }" aria-hidden="true">
           <i class="size-2 rounded-full" :style="{ background: colorFor(index) }" />
         </span>
-        <h3 class="text-sm font-bold text-ink">{{ group.name }}</h3>
+        <h3 class="text-base font-bold text-ink">{{ group.name }}</h3>
       </header>
       <ChartCanvas
         :series="[fullSeries(group, index)]"
@@ -156,17 +156,17 @@ const legendLabel = (item: Series): string => {
 
   <section v-else class="flex h-full min-h-0 flex-col rounded-2xl bg-sheet p-5 shadow-card">
     <header class="mb-3">
-      <h3 class="text-lg font-bold text-ink">全部组汇总 <span class="font-medium text-muted">m–V 图像</span></h3>
+      <h3 class="text-xl font-bold text-ink">全部组汇总 <span class="font-medium text-muted">m–V 图像</span></h3>
     </header>
     <ChartCanvas :series="summarySeries" :options="summaryOptions" />
-    <div class="mt-3 flex flex-wrap gap-2 text-sm">
+    <div class="mt-3 flex flex-wrap gap-2 text-base">
       <span
         v-for="item in summarySeries"
         :key="item.name"
-        class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-medium text-ink"
+        class="inline-flex h-8 items-center gap-2 rounded-full px-3.5 font-medium text-ink"
         :style="{ background: tint(item.color, 0.14) }"
       >
-        <i class="size-2 rounded-full" :style="{ background: item.color }" />
+        <i class="size-2.5 rounded-full" :style="{ background: item.color }" />
         {{ legendLabel(item) }}
       </span>
     </div>

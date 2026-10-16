@@ -31,7 +31,8 @@ export interface ChartOptions {
   emptyText?: string
 }
 
-const FONT = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif'
+/** 与页面一致：英文和数字用 Times New Roman，中文回落到苹方 */
+const FONT = '"Times New Roman",Times,"PingFang SC","Microsoft YaHei",serif'
 
 /** 画布配色，与 style.css 的主题色保持一致 */
 const INK = {
@@ -89,11 +90,11 @@ const paintHint = (
   small: boolean,
 ): void => {
   ctx.fillStyle = INK.label
-  ctx.font = `${small ? 12 : 15}px ${FONT}`
+  ctx.font = `${small ? 14 : 19}px ${FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const lines = text.split('\n')
-  const lineHeight = small ? 18 : 24
+  const lineHeight = small ? 21 : 30
   const start = height / 2 - ((lines.length - 1) * lineHeight) / 2
   lines.forEach((line, index) => {
     ctx.fillText(line, width / 2, start + index * lineHeight)
@@ -127,7 +128,7 @@ export const drawChart = (
   ctx.fillRect(0, 0, width, height)
 
   const small = !!options.small
-  const pad = small ? { l: 38, r: 12, t: 12, b: 28 } : { l: 62, r: 24, t: 18, b: 46 }
+  const pad = small ? { l: 44, r: 12, t: 12, b: 32 } : { l: 76, r: 24, t: 18, b: 58 }
   const plotWidth = width - pad.l - pad.r
   const plotHeight = height - pad.t - pad.b
   if (plotWidth < 20 || plotHeight < 20) return
@@ -145,7 +146,7 @@ export const drawChart = (
 
   ctx.lineWidth = 1
   ctx.strokeStyle = INK.grid
-  ctx.font = `${small ? 10 : 12}px ${FONT}`
+  ctx.font = `${small ? 12 : 16}px ${FONT}`
   ctx.fillStyle = INK.label
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
@@ -169,7 +170,7 @@ export const drawChart = (
   }
 
   ctx.strokeStyle = INK.axis
-  ctx.lineWidth = 1.4
+  ctx.lineWidth = 2
   ctx.beginPath()
   ctx.moveTo(pad.l, pad.t)
   ctx.lineTo(pad.l, pad.t + plotHeight)
@@ -178,28 +179,28 @@ export const drawChart = (
 
   if (!small) {
     ctx.fillStyle = INK.title
-    ctx.font = `600 13px ${FONT}`
+    ctx.font = `600 18px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    ctx.fillText('V / cm³', pad.l + plotWidth / 2, pad.t + plotHeight + 22)
+    ctx.fillText('V (cm³)', pad.l + plotWidth / 2, pad.t + plotHeight + 30)
     ctx.save()
     ctx.translate(16, pad.t + plotHeight / 2)
     ctx.rotate(-Math.PI / 2)
     ctx.textBaseline = 'middle'
-    ctx.fillText('m / g', 0, 0)
+    ctx.fillText('m (g)', 0, 0)
     ctx.restore()
   }
 
   ctx.save()
   ctx.beginPath()
-  ctx.rect(pad.l - 8, pad.t - 8, plotWidth + 16, plotHeight + 16)
+  ctx.rect(pad.l - 12, pad.t - 12, plotWidth + 24, plotHeight + 24)
   ctx.clip()
 
   const guides = options.guides ?? []
   if (guides.length) {
     ctx.save()
-    ctx.setLineDash([5, 5])
-    ctx.lineWidth = 1.3
+    ctx.setLineDash([6, 5])
+    ctx.lineWidth = 2
     for (const guide of guides) {
       const gx = xOf(guide.x)
       const gy = yOf(guide.y)
@@ -217,12 +218,12 @@ export const drawChart = (
       ctx.fillStyle = guide.color
       ctx.globalAlpha = 0.9
       ctx.beginPath()
-      ctx.arc(gx, pad.t + plotHeight, 3.5, 0, Math.PI * 2)
+      ctx.arc(gx, pad.t + plotHeight, 5, 0, Math.PI * 2)
       ctx.fill()
       ctx.beginPath()
-      ctx.arc(pad.l, gy, 3.5, 0, Math.PI * 2)
+      ctx.arc(pad.l, gy, 5, 0, Math.PI * 2)
       ctx.fill()
-      ctx.setLineDash([5, 5])
+      ctx.setLineDash([6, 5])
     }
     ctx.restore()
   }
@@ -238,8 +239,8 @@ export const drawChart = (
     ctx.moveTo(xOf(0), yOf(0))
     ctx.lineTo(xOf(xEnd), yOf(slope * xEnd))
     ctx.strokeStyle = item.color
-    ctx.lineWidth = small ? 1.6 : 2.2
-    ctx.globalAlpha = 0.8
+    ctx.lineWidth = small ? 2.6 : 3.6
+    ctx.globalAlpha = 0.85
     ctx.stroke()
     ctx.globalAlpha = 1
   }
@@ -248,10 +249,10 @@ export const drawChart = (
     item.points.forEach((point, pointIndex) => {
       const isLast = seriesIndex === series.length - 1 && pointIndex === item.points.length - 1
       const pop = isLast ? (options.pop ?? 1) : 1
-      const radius = (small ? 3.5 : 5) * (0.35 + 0.65 * pop)
+      const radius = (small ? 5 : 7.5) * (0.35 + 0.65 * pop)
       if (isLast && pop < 1) {
         ctx.beginPath()
-        ctx.arc(xOf(point.x), yOf(point.y), 12 * pop, 0, Math.PI * 2)
+        ctx.arc(xOf(point.x), yOf(point.y), 18 * pop, 0, Math.PI * 2)
         ctx.fillStyle = item.color
         ctx.globalAlpha = 0.16
         ctx.fill()
@@ -262,7 +263,7 @@ export const drawChart = (
       ctx.fillStyle = item.color
       ctx.fill()
       ctx.strokeStyle = INK.sheet
-      ctx.lineWidth = 2
+      ctx.lineWidth = small ? 2 : 2.5
       ctx.stroke()
     })
   })
@@ -270,7 +271,7 @@ export const drawChart = (
 
   if (options.showValues && !small && guides.length) {
     ctx.save()
-    ctx.font = `bold 12px ${FONT}`
+    ctx.font = `bold 16px ${FONT}`
     for (const guide of guides) {
       const px = xOf(guide.x)
       const py = yOf(guide.y)
@@ -279,10 +280,10 @@ export const drawChart = (
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillStyle = INK.chip
-      roundRect(ctx, px - volumeWidth / 2 - 4, pad.t + plotHeight + 16, volumeWidth + 8, 18, 4)
+      roundRect(ctx, px - volumeWidth / 2 - 6, pad.t + plotHeight + 4, volumeWidth + 12, 23, 5)
       ctx.fill()
       ctx.fillStyle = guide.color
-      ctx.fillText(volume, px, pad.t + plotHeight + 19)
+      ctx.fillText(volume, px, pad.t + plotHeight + 7)
 
       ctx.save()
       ctx.textAlign = 'right'
@@ -290,7 +291,7 @@ export const drawChart = (
       const mass = formatNumber(guide.y)
       const massWidth = ctx.measureText(mass).width
       ctx.fillStyle = INK.chip
-      roundRect(ctx, pad.l - massWidth - 20, py - 9, massWidth + 10, 18, 4)
+      roundRect(ctx, pad.l - massWidth - 20, py - 11.5, massWidth + 12, 23, 5)
       ctx.fill()
       ctx.fillStyle = guide.color
       ctx.fillText(mass, pad.l - 14, py)
