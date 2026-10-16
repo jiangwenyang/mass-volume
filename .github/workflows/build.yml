@@ -1,0 +1,84 @@
+# 在 GitHub 的 macOS 与 Windows 构建机上打包。
+# 推送到 main 或手动运行只上传 Actions 产物；推送 v* 标签时额外发布 Release。
+name: 构建安装包
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          # Intel
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 安装 Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # 交叉编译目标只在 macOS 构建机上安装
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: 缓存 Rust 构建
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      # 没有 Apple 证书时做临时签名，避免 Apple Silicon 安装包被标成已损坏
+      - name: 设置 macOS 临时签名
+        if: runner.os == 'macOS'
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+
+      # 不传 tagName 时只构建并上传 Actions 产物
+      - name: 构建并上传产物
+        if: github.ref_type != 'tag'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          uploadWorkflowArtifacts: true
+          args: ${{ matrix.args }}
+
+      # 标签已存在，把安装包发布到该标签的 Release
+      - name: 构建并发布 Release
+        if: github.ref_type == 'tag'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          uploadWorkflowArtifacts: true
+          tagName: ${{ github.ref_name }}
+          releaseName: '质量与体积 ${{ github.ref_name }}'
+          releaseBody: '见附件下载并安装。'
+          releaseDraft: false
+          prerelease: false
+          # 多个系统同时创建同一个 Release 时重试
+          retryAttempts: 3
+          args: ${{ matrix.args }}
