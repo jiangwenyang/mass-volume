@@ -37,10 +37,19 @@ struct Inner {
     room: Mutex<RoomState>,
     path: PathBuf,
     tx: broadcast::Sender<String>,
-    /// 每个连接当前选中的组。没有选组时是 None，教师窗口也在这里。
-    seats: Mutex<HashMap<u64, Option<String>>>,
+    /// 每个连接的身份和选中的组，教师窗口也在这里。
+    seats: Mutex<HashMap<u64, Seat>>,
     next_seat: AtomicU64,
     port: u16,
+}
+
+/// 一个连接的身份。教师窗口从不发选组消息，`tablet` 一直为假。
+#[derive(Default)]
+struct Seat {
+    /// 发过选组消息，说明是学生平板
+    tablet: bool,
+    /// 当前选中的组，停在选组页时为空
+    group_id: Option<String>,
 }
 
 /// 调整分组的请求体。
@@ -426,7 +435,7 @@ impl AppState {
     /// 登记一个新连接，此时还没有选组。
     fn open_seat(&self) -> u64 {
         let id = self.inner.next_seat.fetch_add(1, Ordering::SeqCst);
-        self.seats().insert(id, None);
+        self.seats().insert(id, Seat::default());
         id
     }
 
@@ -435,7 +444,8 @@ impl AppState {
         {
             let mut seats = self.seats();
             if let Some(slot) = seats.get_mut(&seat) {
-                *slot = group_id;
+                slot.tablet = true;
+                slot.group_id = group_id;
             }
         }
         self.publish_presence();
@@ -447,7 +457,7 @@ impl AppState {
         self.publish_presence();
     }
 
-    /// 广播在线人数，以及每个组当前有几台平板。
+    /// 广播在线平板数，以及每个组当前有几台平板。教师窗口不计入。
     fn publish_presence(&self) {
         let valid: std::collections::HashSet<String> = self
             .snapshot()
@@ -455,15 +465,7 @@ impl AppState {
             .into_iter()
             .map(|group| group.id)
             .collect();
-        let mut counts: HashMap<String, usize> = HashMap::new();
-        let seats = self.seats();
-        for group_id in seats.values().flatten() {
-            if valid.contains(group_id) {
-                *counts.entry(group_id.clone()).or_default() += 1;
-            }
-        }
-        let clients = seats.len();
-        drop(seats);
+        let (clients, counts) = tally(&self.seats(), &valid);
         let joined: Vec<_> = counts
             .into_iter()
             .map(|(group_id, count)| json!({ "groupId": group_id, "count": count }))
@@ -478,7 +480,7 @@ impl AppState {
     }
 
     /// 取得座位表。锁中毒时继续用里面的数据。
-    fn seats(&self) -> std::sync::MutexGuard<'_, HashMap<u64, Option<String>>> {
+    fn seats(&self) -> std::sync::MutexGuard<'_, HashMap<u64, Seat>> {
         self.inner
             .seats
             .lock()
@@ -489,6 +491,25 @@ impl AppState {
     fn lock(&self) -> std::sync::MutexGuard<'_, RoomState> {
         self.inner.room.lock().unwrap_or_else(|error| error.into_inner())
     }
+}
+
+/// 数出在线平板数，以及每个现存组里有几台平板。
+///
+/// # 参数
+/// - `seats` - 全部连接
+/// - `valid` - 当前还存在的组 id
+fn tally(
+    seats: &HashMap<u64, Seat>,
+    valid: &std::collections::HashSet<String>,
+) -> (usize, HashMap<String, usize>) {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for group_id in seats.values().filter_map(|seat| seat.group_id.as_ref()) {
+        if valid.contains(group_id) {
+            *counts.entry(group_id.clone()).or_default() += 1;
+        }
+    }
+    let tablets = seats.values().filter(|seat| seat.tablet).count();
+    (tablets, counts)
 }
 
 /// HTTP 错误。
@@ -521,5 +542,34 @@ fn error_body(error: &StateError) -> serde_json::Value {
             "code": "invalid",
             "message": message,
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn teacher_windows_are_not_counted_as_tablets() {
+        let mut seats = HashMap::new();
+        seats.insert(1, Seat::default());
+        seats.insert(2, Seat::default());
+        seats.insert(3, Seat { tablet: true, group_id: None });
+        seats.insert(4, Seat { tablet: true, group_id: Some("g2".into()) });
+        let valid = ["g1".to_string(), "g2".to_string()].into_iter().collect();
+        let (tablets, counts) = tally(&seats, &valid);
+        assert_eq!(tablets, 2);
+        assert_eq!(counts.get("g2"), Some(&1));
+        assert_eq!(counts.get("g1"), None);
+    }
+
+    #[test]
+    fn removed_groups_drop_out_of_joined() {
+        let mut seats = HashMap::new();
+        seats.insert(1, Seat { tablet: true, group_id: Some("g9".into()) });
+        let valid = ["g1".to_string()].into_iter().collect();
+        let (tablets, counts) = tally(&seats, &valid);
+        assert_eq!(tablets, 1);
+        assert!(counts.is_empty());
     }
 }
