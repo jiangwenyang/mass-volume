@@ -2,19 +2,30 @@ import type { Group, Point, Row } from '../types'
 
 /** 各组在图像上的颜色，按组的顺序循环使用 */
 export const GROUP_COLORS = [
-  '#e53935',
-  '#fb8c00',
-  '#7cb342',
-  '#00897b',
-  '#00acc1',
-  '#1e88e5',
-  '#8e24aa',
-  '#d81b60',
-  '#6d4c41',
-  '#5e35b1',
-  '#039be5',
-  '#f4511e',
+  '#3b7bff',
+  '#ff5a4e',
+  '#10b981',
+  '#f59e0b',
+  '#8b5cf6',
+  '#06b6d4',
+  '#ec4899',
+  '#65a30d',
+  '#f97316',
+  '#6366f1',
+  '#14b8a6',
+  '#d946ef',
 ] as const
+
+/**
+ * 给组色加透明度，做浅底标签用。
+ * @param color - 六位十六进制颜色
+ * @param alpha - 0 到 1 的不透明度
+ * @returns 八位十六进制颜色
+ */
+export const tint = (color: string, alpha: number): string =>
+  `${color}${Math.round(Math.min(Math.max(alpha, 0), 1) * 255)
+    .toString(16)
+    .padStart(2, '0')}`
 
 /**
  * 取某一组的颜色。
@@ -23,7 +34,7 @@ export const GROUP_COLORS = [
  */
 export const colorFor = (index: number): string => {
   const color = GROUP_COLORS[index % GROUP_COLORS.length]
-  return color ?? '#1e88e5'
+  return color ?? '#3b7bff'
 }
 
 /**

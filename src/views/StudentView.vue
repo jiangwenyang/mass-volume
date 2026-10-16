@@ -3,7 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { ChevronLeft, Cloud, Plus, Tablet } from '@lucide/vue'
 import GroupTable from '../components/GroupTable.vue'
 import { useRoom } from '../composables/useRoom'
-import { colorFor, validCount } from '../lib/lab'
+import { colorFor, tint, validCount } from '../lib/lab'
 import type { CellField } from '../types'
 
 const STORAGE_KEY = 'physics-lab-group'
@@ -80,48 +80,60 @@ const appendRow = (): void => {
 </script>
 
 <template>
-  <div class="flex h-dvh flex-col bg-[#eef2f8] text-slate-800">
+  <div class="flex h-dvh flex-col bg-paper text-ink">
     <header
-      class="flex items-center gap-3 bg-gradient-to-r from-blue-950 via-blue-600 to-blue-500 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 text-white"
+      class="grid shrink-0 grid-cols-[7.5rem_minmax(0,1fr)_7.5rem] items-center gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2"
     >
-      <button
-        v-if="selected"
-        type="button"
-        class="touch-manipulation inline-flex items-center gap-1 rounded-xl bg-white/15 px-4 py-2 text-base active:bg-white/25"
-        @click="back"
-      >
-        <ChevronLeft class="size-5" />
-        选组
-      </button>
-      <h1 class="min-w-0 flex-1 truncate text-center text-xl font-semibold">
+      <div>
+        <button
+          v-if="selected"
+          type="button"
+          class="touch-manipulation inline-flex h-11 items-center gap-0.5 rounded-xl bg-sheet pr-4 pl-2 text-base font-medium text-primary shadow-card transition-colors hover:bg-primary-soft focus-visible:bg-primary-soft active:bg-primary-soft"
+          @click="back"
+        >
+          <ChevronLeft class="size-5" />
+          选组
+        </button>
+      </div>
+      <h1 class="truncate text-center text-xl font-bold text-ink">
         {{ selected ? selected.name : '选择本组' }}
       </h1>
-      <span class="inline-flex shrink-0 items-center gap-1 text-sm text-blue-100">
-        <Cloud class="size-4" />
-        {{ saving ? '正在发送' : connected ? '已同步' : '正在连接' }}
+      <span class="flex justify-end">
+        <span
+          class="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium"
+          :class="connected && !saving ? 'bg-live-soft text-live' : 'bg-soft text-muted'"
+        >
+          <Cloud class="size-4" />
+          {{ saving ? '正在发送' : connected ? '已同步' : '正在连接' }}
+        </span>
       </span>
     </header>
 
-    <p v-if="notice" class="bg-amber-50 px-5 py-2 text-base text-amber-900">{{ notice }}</p>
+    <p v-if="notice" class="mx-5 rounded-xl bg-notice px-4 py-2 text-base text-notice-ink">{{ notice }}</p>
 
-    <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-      <div v-if="!room" class="grid h-full place-items-center text-lg text-slate-500">正在连接实验服务…</div>
+    <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+      <div v-if="!room" class="grid h-full place-items-center text-lg text-muted">正在连接实验服务…</div>
 
-      <div v-else-if="!selected" class="mx-auto grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+      <div v-else-if="!selected" class="mx-auto grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-3">
         <button
           v-for="(group, index) in groups"
           :key="group.id"
           type="button"
-          class="touch-manipulation flex min-h-36 flex-col items-start justify-between rounded-3xl bg-white p-5 text-left shadow-sm transition active:scale-[0.98]"
+          class="touch-manipulation flex min-h-40 flex-col justify-between rounded-2xl bg-sheet p-5 text-left shadow-card transition-[background-color,transform] duration-150 hover:bg-(--tile) focus-visible:bg-(--tile) active:scale-[0.98] active:bg-(--tile) motion-reduce:active:scale-100"
+          :style="{ '--tile': tint(colorFor(index), 0.1) }"
           @click="choose(group.id)"
         >
-          <span class="size-4 rounded-full" :style="{ background: colorFor(index) }" />
-          <span class="text-2xl font-semibold text-slate-800">{{ group.name }}</span>
-          <span class="flex w-full items-center justify-between text-base text-slate-500">
-            <span>已填 {{ validCount(group) }} 个点</span>
-            <span v-if="joined[group.id]" class="inline-flex items-center gap-1 text-emerald-700">
+          <span class="flex items-center gap-3">
+            <span class="grid size-11 shrink-0 place-items-center rounded-full" :style="{ background: tint(colorFor(index), 0.18) }">
+              <i class="size-4 rounded-full" :style="{ background: colorFor(index) }" />
+            </span>
+            <span class="min-w-0 truncate text-[1.7rem] leading-none font-bold text-ink">{{ group.name }}</span>
+          </span>
+          <span class="flex w-full items-center justify-between text-base text-muted">
+            <span>已填 <b class="font-bold tabular-nums text-ink">{{ validCount(group) }}</b> 个点</span>
+            <span v-if="joined[group.id]" class="inline-flex h-8 items-center gap-1.5 rounded-full bg-live-soft px-3 text-sm font-semibold text-live">
               <Tablet class="size-4" />
-              {{ joined[group.id] }} 人
+              <span class="tabular-nums">{{ joined[group.id] }} 人</span>
             </span>
           </span>
         </button>
@@ -132,7 +144,6 @@ const appendRow = (): void => {
           :group="selected"
           :color="colorFor(Math.max(selectedIndex, 0))"
           large
-          active
           :flashes="flashes"
           @patch="commitCell"
           @remove="dropRow"
@@ -141,13 +152,10 @@ const appendRow = (): void => {
       </div>
     </main>
 
-    <footer
-      v-if="selected"
-      class="border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
-    >
+    <footer v-if="selected" class="px-5 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
-        class="touch-manipulation mx-auto flex h-14 w-full max-w-[960px] items-center justify-center gap-2 rounded-2xl bg-blue-600 text-lg font-semibold text-white active:bg-blue-700"
+        class="touch-manipulation mx-auto flex h-14 w-full max-w-[960px] items-center justify-center gap-2 rounded-2xl bg-primary text-lg font-semibold text-white shadow-[0_10px_24px_rgb(47_107_255/0.3)] transition-colors hover:bg-primary-strong focus-visible:bg-primary-strong active:bg-primary-strong"
         @click="appendRow"
       >
         <Plus class="size-5" />

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import ChartCanvas from './ChartCanvas.vue'
 import type { PlotMotion, PlotProgress } from '../composables/usePlot'
 import type { Guide, Series } from '../lib/chart'
-import { colorFor, fitK, pointsOf, sharedLimits } from '../lib/lab'
+import { colorFor, fitK, pointsOf, sharedLimits, tint } from '../lib/lab'
 import type { Group } from '../types'
 
 const props = defineProps<{
@@ -112,26 +112,40 @@ const legendLabel = (item: Series): string => {
 </script>
 
 <template>
-  <section v-if="mode === 'single'" class="flex h-full min-h-0 flex-col rounded-xl bg-white p-3 shadow-sm">
-    <header class="mb-2 flex items-center gap-2">
-      <span class="size-2.5 rounded-full" :style="{ background: colorFor(activeIndex) }" />
-      <h3 class="text-base font-semibold text-slate-700">{{ active?.name }} m–V 图像</h3>
-      <span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">{{ singleTag }}</span>
+  <section v-if="mode === 'single'" class="flex h-full min-h-0 flex-col rounded-2xl bg-sheet p-5 shadow-card">
+    <header class="mb-3 flex items-center gap-2.5">
+      <span class="grid size-6 shrink-0 place-items-center rounded-full" :style="{ background: tint(colorFor(activeIndex), 0.18) }" aria-hidden="true">
+        <i class="size-2.5 rounded-full" :style="{ background: colorFor(activeIndex) }" />
+      </span>
+      <h3 class="text-lg font-bold text-ink">{{ active?.name }} <span class="font-medium text-muted">m–V 图像</span></h3>
+      <span
+        class="ml-auto inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold"
+        :class="singleTag === '图像已生成' ? 'bg-live-soft text-live' : singleTag === '等待操作' ? 'bg-soft text-muted' : 'bg-primary-soft text-primary'"
+      >
+        {{ singleTag }}
+      </span>
     </header>
     <ChartCanvas :series="singleSeries" :options="singleOptions" />
-    <div class="mt-1 flex flex-wrap gap-x-4 text-sm text-slate-600">
-      <span v-for="item in singleSeries.filter((entry) => entry.points.length)" :key="item.name" class="inline-flex items-center gap-1.5">
-        <i class="size-2.5 rounded-full" :style="{ background: item.color }" />
+    <div class="mt-3 flex flex-wrap gap-2 text-sm">
+      <span
+        v-for="item in singleSeries.filter((entry) => entry.points.length)"
+        :key="item.name"
+        class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-medium text-ink"
+        :style="{ background: tint(item.color, 0.14) }"
+      >
+        <i class="size-2 rounded-full" :style="{ background: item.color }" />
         {{ legendLabel(item) }}
       </span>
     </div>
   </section>
 
-  <div v-else-if="mode === 'all'" class="grid h-full auto-rows-[260px] grid-cols-1 gap-3 overflow-y-auto md:grid-cols-2 xl:grid-cols-3">
-    <article v-for="(group, index) in groups" :key="group.id" class="flex min-h-0 flex-col rounded-xl bg-white p-2 shadow-sm">
-      <header class="mb-1 flex items-center gap-2 px-1">
-        <span class="size-2.5 rounded-full" :style="{ background: colorFor(index) }" />
-        <h3 class="text-sm font-semibold text-slate-700">{{ group.name }}</h3>
+  <div v-else-if="mode === 'all'" class="grid h-full auto-rows-[270px] grid-cols-1 gap-4 overflow-y-auto md:grid-cols-2 xl:grid-cols-3">
+    <article v-for="(group, index) in groups" :key="group.id" class="flex min-h-0 flex-col rounded-2xl bg-sheet p-3.5 shadow-card">
+      <header class="mb-1.5 flex items-center gap-2 px-1">
+        <span class="grid size-5 shrink-0 place-items-center rounded-full" :style="{ background: tint(colorFor(index), 0.18) }" aria-hidden="true">
+          <i class="size-2 rounded-full" :style="{ background: colorFor(index) }" />
+        </span>
+        <h3 class="text-sm font-bold text-ink">{{ group.name }}</h3>
       </header>
       <ChartCanvas
         :series="[fullSeries(group, index)]"
@@ -140,14 +154,19 @@ const legendLabel = (item: Series): string => {
     </article>
   </div>
 
-  <section v-else class="flex h-full min-h-0 flex-col rounded-xl bg-white p-3 shadow-sm">
-    <header class="mb-2">
-      <h3 class="text-base font-semibold text-slate-700">全部组汇总 · m–V</h3>
+  <section v-else class="flex h-full min-h-0 flex-col rounded-2xl bg-sheet p-5 shadow-card">
+    <header class="mb-3">
+      <h3 class="text-lg font-bold text-ink">全部组汇总 <span class="font-medium text-muted">m–V 图像</span></h3>
     </header>
     <ChartCanvas :series="summarySeries" :options="summaryOptions" />
-    <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-      <span v-for="item in summarySeries" :key="item.name" class="inline-flex items-center gap-1.5">
-        <i class="size-2.5 rounded-full" :style="{ background: item.color }" />
+    <div class="mt-3 flex flex-wrap gap-2 text-sm">
+      <span
+        v-for="item in summarySeries"
+        :key="item.name"
+        class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-medium text-ink"
+        :style="{ background: tint(item.color, 0.14) }"
+      >
+        <i class="size-2 rounded-full" :style="{ background: item.color }" />
         {{ legendLabel(item) }}
       </span>
     </div>

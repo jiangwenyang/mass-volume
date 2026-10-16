@@ -33,6 +33,16 @@ export interface ChartOptions {
 
 const FONT = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif'
 
+/** 画布配色，与 style.css 的主题色保持一致 */
+const INK = {
+  sheet: '#ffffff',
+  grid: '#e8eefb',
+  axis: '#b4c0d8',
+  label: '#66728c',
+  title: '#16213e',
+  chip: '#edf2fd',
+} as const
+
 /**
  * 画圆角矩形路径，不负责填充。
  * @param ctx - 画布上下文
@@ -78,7 +88,7 @@ const paintHint = (
   text: string,
   small: boolean,
 ): void => {
-  ctx.fillStyle = '#94a3b8'
+  ctx.fillStyle = INK.label
   ctx.font = `${small ? 12 : 15}px ${FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -112,7 +122,8 @@ export const drawChart = (
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  ctx.fillStyle = '#ffffff'
+  // 底色与卡片相同，图表不再像一块白卡片嵌在页面里
+  ctx.fillStyle = INK.sheet
   ctx.fillRect(0, 0, width, height)
 
   const small = !!options.small
@@ -133,9 +144,9 @@ export const drawChart = (
   const yOf = (value: number): number => pad.t + plotHeight - (value / scaleY.max) * plotHeight
 
   ctx.lineWidth = 1
-  ctx.strokeStyle = '#eef2f7'
+  ctx.strokeStyle = INK.grid
   ctx.font = `${small ? 10 : 12}px ${FONT}`
-  ctx.fillStyle = '#94a3b8'
+  ctx.fillStyle = INK.label
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
   for (let y = 0; y <= scaleY.max + 1e-9; y += scaleY.step) {
@@ -157,8 +168,8 @@ export const drawChart = (
     ctx.fillText(formatNumber(x), px, pad.t + plotHeight + 6)
   }
 
-  ctx.strokeStyle = '#94a3b8'
-  ctx.lineWidth = 1.2
+  ctx.strokeStyle = INK.axis
+  ctx.lineWidth = 1.4
   ctx.beginPath()
   ctx.moveTo(pad.l, pad.t)
   ctx.lineTo(pad.l, pad.t + plotHeight)
@@ -166,8 +177,8 @@ export const drawChart = (
   ctx.stroke()
 
   if (!small) {
-    ctx.fillStyle = '#475569'
-    ctx.font = `13px ${FONT}`
+    ctx.fillStyle = INK.title
+    ctx.font = `600 13px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     ctx.fillText('V / cm³', pad.l + plotWidth / 2, pad.t + plotHeight + 22)
@@ -250,8 +261,8 @@ export const drawChart = (
       ctx.arc(xOf(point.x), yOf(point.y), radius, 0, Math.PI * 2)
       ctx.fillStyle = item.color
       ctx.fill()
-      ctx.strokeStyle = '#ffffff'
-      ctx.lineWidth = 1.6
+      ctx.strokeStyle = INK.sheet
+      ctx.lineWidth = 2
       ctx.stroke()
     })
   })
@@ -267,12 +278,9 @@ export const drawChart = (
       const volumeWidth = ctx.measureText(volume).width
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
-      ctx.fillStyle = '#ffffff'
-      ctx.strokeStyle = guide.color
-      ctx.lineWidth = 1
+      ctx.fillStyle = INK.chip
       roundRect(ctx, px - volumeWidth / 2 - 4, pad.t + plotHeight + 16, volumeWidth + 8, 18, 4)
       ctx.fill()
-      ctx.stroke()
       ctx.fillStyle = guide.color
       ctx.fillText(volume, px, pad.t + plotHeight + 19)
 
@@ -281,11 +289,9 @@ export const drawChart = (
       ctx.textBaseline = 'middle'
       const mass = formatNumber(guide.y)
       const massWidth = ctx.measureText(mass).width
-      ctx.fillStyle = '#ffffff'
-      ctx.strokeStyle = guide.color
+      ctx.fillStyle = INK.chip
       roundRect(ctx, pad.l - massWidth - 20, py - 9, massWidth + 10, 18, 4)
       ctx.fill()
-      ctx.stroke()
       ctx.fillStyle = guide.color
       ctx.fillText(mass, pad.l - 14, py)
       ctx.restore()

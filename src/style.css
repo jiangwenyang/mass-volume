@@ -1,5 +1,49 @@
 @import "tailwindcss";
 
+/* 晴空蓝：冷白底、纯白卡片、亮蓝主色、珊瑚红只给 m/V。全程不画描边，靠底色和投影分层。 */
+@theme {
+  --font-sans: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --color-paper: #f3f7ff;
+  --color-sheet: #ffffff;
+  --color-soft: #edf2fd;
+  --color-deep: #dfe8fc;
+  --color-ink: #16213e;
+  --color-muted: #66728c;
+  --color-primary: #2f6bff;
+  --color-primary-strong: #1f56e0;
+  --color-primary-soft: #e4ecff;
+  --color-result: #f0483e;
+  --color-result-soft: #ffebe8;
+  --color-live: #0fa968;
+  --color-live-soft: #dcf6ea;
+  --color-notice: #fff4d6;
+  --color-notice-ink: #855a00;
+  --shadow-card: 0 1px 2px rgb(22 33 62 / 0.04), 0 6px 20px rgb(47 107 255 / 0.06);
+  --shadow-pop: 0 24px 60px rgb(22 33 62 / 0.18);
+  --animate-join: join-in 180ms ease;
+  --animate-cell: cell-flash 0.6s ease;
+
+  @keyframes join-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes cell-flash {
+    from {
+      background-color: #c9f2dd;
+    }
+    to {
+      background-color: #edf2fd;
+    }
+  }
+}
+
 html,
 body,
 #app {
@@ -8,9 +52,11 @@ body,
 }
 
 body {
-  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  background: #eef2f8;
-  color: #1e293b;
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -20,4 +66,20 @@ input {
 
 button {
   cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

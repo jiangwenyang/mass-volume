@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Tablet, Users } from '@lucide/vue'
-import { colorFor } from '../lib/lab'
+import { Tablet } from '@lucide/vue'
+import { colorFor, tint } from '../lib/lab'
 import type { Group } from '../types'
 
 const props = defineProps<{
@@ -23,58 +23,32 @@ const online = computed(() =>
 </script>
 
 <template>
-  <section class="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-2">
-    <span class="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-700">
-      <Users class="size-4 text-blue-700" />
-      已加入 {{ online.length }} 组
+  <section class="flex min-h-11 shrink-0 items-center gap-3 px-5">
+    <span class="inline-flex shrink-0 items-center gap-2 text-sm">
+      <span class="relative flex size-2">
+        <span v-if="online.length" class="absolute inset-0 rounded-full bg-live opacity-60 motion-safe:animate-ping" />
+        <span class="relative size-2 rounded-full" :class="online.length ? 'bg-live' : 'bg-muted/40'" />
+      </span>
+      <span class="font-medium text-ink">已加入</span>
+      <span class="tabular-nums text-muted">{{ online.length }} / {{ groups.length }}</span>
     </span>
-    <div v-if="online.length" class="flex min-w-0 flex-1 gap-2 overflow-x-auto">
+    <div v-if="online.length" class="flex min-w-0 flex-1 gap-2 overflow-x-auto py-1.5">
       <button
         v-for="item in online"
         :key="item.group.id"
         type="button"
-        class="join-chip"
-        :style="{ borderColor: item.color, color: item.color }"
+        class="motion-safe:animate-join inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-sm font-semibold text-ink transition-[filter] hover:brightness-95 focus-visible:brightness-90"
+        :style="{ background: tint(item.color, 0.16) }"
         @click="emit('select', item.group)"
       >
-        <span class="relative flex size-2">
-          <span class="absolute inline-flex size-full rounded-full opacity-60 motion-safe:animate-ping" :style="{ background: item.color }" />
-          <span class="relative size-2 rounded-full" :style="{ background: item.color }" />
-        </span>
+        <i class="size-2 rounded-full" :style="{ background: item.color }" />
         {{ item.group.name }}
-        <span class="inline-flex items-center gap-0.5 text-xs opacity-80">
+        <span class="inline-flex items-center gap-0.5 text-xs font-medium text-muted">
           <Tablet class="size-3.5" />
-          {{ item.count }}
+          <span class="tabular-nums">{{ item.count }}</span>
         </span>
       </button>
     </div>
-    <p v-else class="truncate text-sm text-slate-400">各组扫码后选择本组，名字会在这里亮起</p>
+    <p v-else class="truncate text-sm text-muted">扫码后在平板上选择本组</p>
   </section>
 </template>
-
-<style scoped>
-.join-chip {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  border: 1.5px solid;
-  background: white;
-  padding: 0.3rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  animation: join-in 0.35s ease;
-}
-
-@keyframes join-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-</style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { QrCode, Wifi } from '@lucide/vue'
+import { QrCode, ScatterChart, Wifi } from '@lucide/vue'
 import QRCode from 'qrcode'
 import ChartStage from '../components/ChartStage.vue'
 import GroupSettingsDialog from '../components/GroupSettingsDialog.vue'
@@ -43,6 +43,7 @@ const hint = ref('')
 
 const groups = computed(() => room.value?.groups ?? [])
 const active = computed(() => groups.value.find((group) => group.id === activeId.value) ?? groups.value[0])
+const activeColor = computed(() => colorFor(Math.max(groups.value.findIndex((group) => group.id === active.value?.id), 0)))
 const primaryIp = computed(() => info.value.ips[0] ?? '')
 const url = computed(() => (primaryIp.value ? joinUrl(primaryIp.value) : ''))
 const joinedTotal = computed(() => Object.values(joined.value).filter((count) => count > 0).length)
@@ -60,7 +61,7 @@ watch(
   url,
   async (value) => {
     qrImage.value = value
-      ? await QRCode.toDataURL(value, { margin: 1, width: 480, color: { dark: '#1e3a8a', light: '#ffffff' } })
+      ? await QRCode.toDataURL(value, { margin: 1, width: 480, color: { dark: '#16213e', light: '#ffffff' } })
       : ''
   },
   { immediate: true },
@@ -107,6 +108,13 @@ const showTable = (): void => {
 }
 
 /**
+ * 只看当前组的图像，保留已描的点。
+ */
+const showSingle = (): void => {
+  mode.value = 'single'
+}
+
+/**
  * 并排看每一组的图像。
  */
 const showAll = (): void => {
@@ -146,34 +154,55 @@ const runConfirmed = (): void => {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col">
-    <header class="flex items-center gap-4 bg-gradient-to-r from-blue-950 via-blue-600 to-blue-500 px-4 py-2.5 text-white shadow-md">
-      <div>
-        <h1 class="text-lg font-semibold tracking-wide">探究物质的质量与体积的关系</h1>
-        <p class="text-xs text-blue-100">m–V 图像 · 分组实验</p>
+  <div class="flex h-full min-h-0 flex-col bg-paper text-ink">
+    <header class="flex shrink-0 items-center gap-6 px-5 pt-4 pb-2">
+      <div class="flex min-w-0 items-center gap-3.5">
+        <span
+          class="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-[0_8px_20px_rgb(47_107_255/0.3)]"
+          aria-hidden="true"
+        >
+          <ScatterChart class="size-6" />
+        </span>
+        <div class="min-w-0">
+          <h1 class="truncate text-[1.6rem] leading-tight font-bold text-ink">探究物质的质量与体积的关系</h1>
+          <p class="mt-0.5 text-sm text-muted">m–V 图像 · 分组实验</p>
+        </div>
       </div>
-      <div class="ml-auto flex items-center gap-3">
-        <button type="button" class="flex items-center gap-3 rounded-xl bg-white/15 px-2 py-1 text-left" @click="qrOpen = true">
-          <img v-if="qrImage" :src="qrImage" alt="学生页二维码" class="size-14 rounded-md bg-white p-1" />
-          <span v-else class="grid size-14 place-items-center rounded-md bg-white text-blue-800">
+      <div class="ml-auto flex shrink-0 items-center gap-3">
+        <div class="flex flex-col items-end gap-1.5 text-sm">
+          <span
+            class="inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-medium"
+            :class="connected ? 'bg-live-soft text-live' : 'bg-result-soft text-result'"
+          >
+            <Wifi class="size-3.5" />
+            {{ statusText }}
+          </span>
+          <span class="pr-1 text-muted">已加入 <b class="font-semibold text-ink">{{ joinedTotal }}</b> 组 · {{ clients }} 台平板</span>
+        </div>
+        <button
+          type="button"
+          class="flex items-center gap-3 rounded-2xl bg-sheet py-1.5 pr-4 pl-1.5 text-left shadow-card transition-colors hover:bg-primary-soft focus-visible:bg-primary-soft"
+          @click="qrOpen = true"
+        >
+          <img v-if="qrImage" :src="qrImage" alt="学生页二维码" class="size-14 rounded-xl" />
+          <span v-else class="grid size-14 place-items-center rounded-xl bg-soft text-primary">
             <QrCode class="size-7" />
           </span>
-          <span class="max-w-72">
-            <span class="block text-xs text-blue-100">平板扫码填写</span>
-            <span class="block truncate text-sm font-medium">{{ url || '正在获取局域网地址' }}</span>
+          <span class="max-w-60">
+            <span class="block text-xs font-medium text-primary">平板扫码填写</span>
+            <span class="block truncate text-sm font-semibold text-ink">{{ url || '正在获取局域网地址' }}</span>
           </span>
         </button>
-        <span class="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
-          <Wifi class="size-3.5" :class="connected ? 'text-emerald-300' : 'text-amber-200'" />
-          {{ statusText }} · 已加入 {{ joinedTotal }} 组
-          <span class="text-blue-100">{{ clients }} 台</span>
-        </span>
       </div>
     </header>
 
     <TeacherToolbar
       :hint="hint"
+      :mode="mode"
+      :active-name="active?.name"
+      :active-color="activeColor"
       @table="showTable"
+      @single="showSingle"
       @plot="active && plotGroup(active)"
       @line="active && lineGroup(active)"
       @all="showAll"
@@ -185,16 +214,16 @@ const runConfirmed = (): void => {
 
     <JoinedRail v-if="room" :groups="groups" :joined="joined" @select="selectGroup" />
 
-    <p v-if="notice" class="bg-amber-50 px-4 py-2 text-sm text-amber-900">{{ notice }}</p>
+    <p v-if="notice" class="mx-5 mt-1 rounded-xl bg-notice px-4 py-2 text-sm text-notice-ink">{{ notice }}</p>
 
-    <div v-if="!room" class="grid flex-1 place-items-center text-slate-500">正在连接实验服务…</div>
+    <div v-if="!room" class="grid flex-1 place-items-center text-base text-muted">正在连接实验服务…</div>
     <div v-else class="flex min-h-0 flex-1">
       <aside
         v-show="mode === 'table' || mode === 'single'"
-        class="min-h-0 overflow-y-auto p-3 transition-all duration-300"
-        :class="mode === 'table' ? 'w-full' : 'w-[34%] min-w-[280px] max-w-[420px]'"
+        class="min-h-0 overflow-y-auto px-5 pt-2 pb-5 motion-safe:transition-[width] motion-safe:duration-200"
+        :class="mode === 'table' ? 'w-full' : 'w-[34%] min-w-[300px] max-w-[440px] pr-3'"
       >
-        <div :class="mode === 'table' ? 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-2'">
+        <div :class="mode === 'table' ? 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-3'">
           <GroupTable
             v-for="(group, index) in groups"
             :key="group.id"
@@ -213,7 +242,11 @@ const runConfirmed = (): void => {
           />
         </div>
       </aside>
-      <section v-show="mode !== 'table'" class="flex min-h-0 min-w-0 flex-1 flex-col p-3">
+      <section
+        v-show="mode !== 'table'"
+        class="flex min-h-0 min-w-0 flex-1 flex-col"
+        :class="mode === 'single' ? 'pt-2 pr-5 pb-5 pl-2' : 'px-5 pt-2 pb-5'"
+      >
         <ChartStage
           class="min-h-0 flex-1"
           :groups="groups"
@@ -227,27 +260,40 @@ const runConfirmed = (): void => {
 
     <GroupSettingsDialog v-model:open="settingsOpen" :groups="groups" @save="(count, names, force) => setGroups(count, names, force)" />
 
-    <div v-if="qrOpen" class="fixed inset-0 z-30 grid place-items-center bg-slate-900/50 p-8" @click="qrOpen = false">
-      <div class="rounded-3xl bg-white px-10 py-8 text-center shadow-2xl" @click.stop>
-        <p class="text-sm text-slate-500">请各组用平板扫描</p>
-        <img v-if="qrImage" :src="qrImage" alt="放大的学生页二维码" class="mx-auto mt-4 size-72" />
-        <p class="mt-4 text-xl font-semibold text-blue-950">{{ url }}</p>
-        <p v-if="info.ips.length > 1" class="mt-2 text-sm text-slate-500">其他地址：{{ info.ips.slice(1).join('、') }}</p>
-        <button type="button" class="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" @click="qrOpen = false">
+    <div v-if="qrOpen" class="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-8 backdrop-blur-sm" @click="qrOpen = false">
+      <div class="rounded-3xl bg-sheet px-10 py-8 text-center shadow-pop" @click.stop>
+        <p class="text-sm font-medium text-primary">请各组用平板扫描</p>
+        <img v-if="qrImage" :src="qrImage" alt="放大的学生页二维码" class="mx-auto mt-4 size-72 rounded-2xl bg-soft p-3" />
+        <p class="mt-4 text-lg font-bold text-ink">{{ url }}</p>
+        <p v-if="info.ips.length > 1" class="mt-2 text-sm text-muted">其他地址：{{ info.ips.slice(1).join('、') }}</p>
+        <button
+          type="button"
+          class="mt-5 h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-strong focus-visible:bg-primary-strong"
+          @click="qrOpen = false"
+        >
           收起
         </button>
       </div>
     </div>
 
-    <div v-if="confirmKind" class="fixed inset-0 z-30 grid place-items-center bg-slate-900/40 p-6">
-      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-        <h2 class="text-lg font-semibold">{{ confirmKind === 'reset' ? '清空全部数据？' : '载入示例数据？' }}</h2>
-        <p class="mt-2 text-sm text-slate-600">
+    <div v-if="confirmKind" class="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-6 backdrop-blur-sm">
+      <div class="w-full max-w-md rounded-3xl bg-sheet p-6 shadow-pop">
+        <h2 class="text-lg font-bold text-ink">{{ confirmKind === 'reset' ? '清空全部数据？' : '载入示例数据？' }}</h2>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
           {{ confirmKind === 'reset' ? '各组已经填写的体积和质量会被清掉，分组和行数还在。' : '会换成原型里的 9 组数据，当前填写会被覆盖。' }}
         </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <button type="button" class="rounded-lg px-4 py-2 text-sm" @click="confirmKind = null">取消</button>
-          <button type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" @click="runConfirmed">确定</button>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="h-11 rounded-xl px-4 text-sm font-medium text-muted transition-colors hover:bg-soft focus-visible:bg-soft" @click="confirmKind = null">
+            取消
+          </button>
+          <button
+            type="button"
+            class="h-11 rounded-xl px-5 text-sm font-semibold text-white transition-colors"
+            :class="confirmKind === 'reset' ? 'bg-result hover:bg-result/90 focus-visible:bg-result/80' : 'bg-primary hover:bg-primary-strong focus-visible:bg-primary-strong'"
+            @click="runConfirmed"
+          >
+            确定
+          </button>
         </div>
       </div>
     </div>

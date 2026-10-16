@@ -47,26 +47,11 @@ const onInput = (event: Event): void => {
     autocomplete="off"
     autocapitalize="off"
     spellcheck="false"
-    class="w-full rounded-lg border border-slate-200 bg-slate-50 text-center text-slate-900 outline-none transition focus:border-blue-600 focus:bg-white focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)]"
+    class="w-full bg-soft text-center font-semibold text-ink tabular-nums outline-none transition-colors duration-150 placeholder:text-muted/40 hover:bg-deep focus:bg-primary-soft focus:text-primary"
     :class="[
-      large ? 'h-12 text-lg' : 'h-8 text-sm',
-      flash ? 'cell-flash' : '',
+      large ? 'h-12 touch-manipulation rounded-xl text-lg' : 'h-9 rounded-lg text-[15px]',
+      flash ? 'motion-safe:animate-cell' : '',
     ]"
     @input="onInput"
   />
 </template>
-
-<style scoped>
-.cell-flash {
-  animation: cell-flash 0.8s ease;
-}
-
-@keyframes cell-flash {
-  from {
-    background-color: #dbeafe;
-  }
-  to {
-    background-color: #f8fafc;
-  }
-}
-</style>
