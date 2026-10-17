@@ -209,7 +209,14 @@ fn lan_ips() -> Vec<String> {
             ips.push(text);
         }
     }
+    rank_ips(&mut ips);
     ips
+}
+
+/// 把 `192.168.` 开头的地址排到最前，同类之间保持网卡原来的顺序。
+/// 教室路由器大多发这一段，代理软件和虚拟机网卡的地址往后放。
+fn rank_ips(ips: &mut [String]) {
+    ips.sort_by_key(|ip| !ip.starts_with("192.168."));
 }
 
 /// 返回当前房间。
@@ -574,6 +581,16 @@ mod tests {
         assert_eq!(tablets, 2);
         assert_eq!(counts.get("g2"), Some(&1));
         assert_eq!(counts.get("g1"), None);
+    }
+
+    #[test]
+    fn home_lan_addresses_come_first() {
+        let mut ips: Vec<String> = ["198.18.0.1", "10.0.0.2", "192.168.139.3", "192.168.100.25"]
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        rank_ips(&mut ips);
+        assert_eq!(ips, ["192.168.139.3", "192.168.100.25", "198.18.0.1", "10.0.0.2"]);
     }
 
     #[test]

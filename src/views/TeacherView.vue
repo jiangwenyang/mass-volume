@@ -15,6 +15,21 @@ import type { Group } from '../types'
 type Mode = 'table' | 'single' | 'all' | 'summary'
 type ConfirmKind = 'reset' | 'sample' | null
 
+/** 记住老师选中的二维码地址 */
+const QR_HOST_KEY = 'mass-volume:qr-host'
+
+/**
+ * 读出上次选中的二维码地址。
+ * @returns 地址；没有记录或读不到存储时为空串
+ */
+const readChosenHost = (): string => {
+  try {
+    return localStorage.getItem(QR_HOST_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 const {
   room,
   info,
@@ -44,7 +59,13 @@ const hint = ref('')
 const groups = computed(() => room.value?.groups ?? [])
 const active = computed(() => groups.value.find((group) => group.id === activeId.value) ?? groups.value[0])
 const activeColor = computed(() => colorFor(Math.max(groups.value.findIndex((group) => group.id === active.value?.id), 0)))
-const primaryIp = computed(() => info.value.ips[0] ?? pageHost())
+const hosts = computed(() => {
+  if (info.value.ips.length) return info.value.ips
+  const host = pageHost()
+  return host ? [host] : []
+})
+const chosenIp = ref(readChosenHost())
+const primaryIp = computed(() => (hosts.value.includes(chosenIp.value) ? chosenIp.value : (hosts.value[0] ?? '')))
 const url = computed(() => (primaryIp.value ? joinUrl(primaryIp.value) : ''))
 const joinedTotal = computed(() => Object.values(joined.value).filter((count) => count > 0).length)
 const hasAnyData = computed(() => groups.value.some((group) => group.rows.some(rowFilled)))
@@ -66,6 +87,19 @@ watch(
   },
   { immediate: true },
 )
+
+/**
+ * 换一个地址生成二维码，并记住这次选择。
+ * @param ip - 服务报出的地址之一
+ */
+const chooseHost = (ip: string): void => {
+  chosenIp.value = ip
+  try {
+    localStorage.setItem(QR_HOST_KEY, ip)
+  } catch {
+    /* 存不下时只在本次生效 */
+  }
+}
 
 /**
  * 选中一组并打开它的图像区。
@@ -265,7 +299,22 @@ const runConfirmed = (): void => {
         <p class="text-sm font-medium text-primary">请各组用平板扫描</p>
         <img v-if="qrImage" :src="qrImage" alt="放大的学生页二维码" class="mx-auto mt-4 size-72 rounded-2xl bg-soft p-3" />
         <p class="mt-4 text-lg font-bold text-ink">{{ url }}</p>
-        <p v-if="info.ips.length > 1" class="mt-2 text-sm text-muted">其他地址：{{ info.ips.slice(1).join('、') }}</p>
+        <div v-if="hosts.length > 1" class="mt-4">
+          <div class="flex max-w-md flex-wrap justify-center gap-2" role="group" aria-label="二维码地址">
+            <button
+              v-for="ip in hosts"
+              :key="ip"
+              type="button"
+              class="inline-flex h-9 items-center rounded-full px-3.5 text-sm font-semibold transition-colors"
+              :class="ip === primaryIp ? 'bg-primary text-white' : 'bg-soft text-ink hover:bg-primary-soft focus-visible:bg-primary-soft'"
+              :aria-pressed="ip === primaryIp"
+              @click="chooseHost(ip)"
+            >
+              {{ ip }}
+            </button>
+          </div>
+          <p class="mt-2 text-sm text-muted">扫不开时换一个地址试试，平板要和电脑连同一个网络</p>
+        </div>
         <button
           type="button"
           class="mt-5 h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-strong focus-visible:bg-primary-strong"
