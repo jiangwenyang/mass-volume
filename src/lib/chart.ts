@@ -1,4 +1,4 @@
-import { fitK, formatNumber, niceScale } from './lab'
+import { formatNumber, niceScale } from './lab'
 import type { Point } from '../types'
 
 /** 一条要画出来的数据 */
@@ -6,9 +6,9 @@ export interface Series {
   name: string
   color: string
   points: Point[]
-  /** 是否画出过原点的拟合直线 */
+  /** 是否画出从原点出发、按体积依次连接各点的折线 */
   line: boolean
-  /** 直线从原点长出的进度，0 到 1 */
+  /** 折线从原点长出的进度，0 到 1 */
   lineProgress: number
 }
 
@@ -99,6 +99,37 @@ const paintHint = (
   lines.forEach((line, index) => {
     ctx.fillText(line, width / 2, start + index * lineHeight)
   })
+}
+
+/**
+ * 按长度比例描出折线路径的前一段，不负责描边。
+ * @param ctx - 画布上下文
+ * @param path - 像素坐标下的折点，第一个是起点
+ * @param progress - 已画出的长度占总长的比例，0 到 1
+ */
+const tracePath = (ctx: CanvasRenderingContext2D, path: Point[], progress: number): void => {
+  const first = path[0]
+  if (!first) return
+  const lengths = path.slice(1).map((point, index) => {
+    const from = path[index] ?? first
+    return Math.hypot(point.x - from.x, point.y - from.y)
+  })
+  let remaining = lengths.reduce((sum, length) => sum + length, 0) * Math.min(Math.max(progress, 0), 1)
+  ctx.beginPath()
+  ctx.moveTo(first.x, first.y)
+  for (let index = 1; index < path.length; index += 1) {
+    const from = path[index - 1] ?? first
+    const to = path[index] ?? first
+    const length = lengths[index - 1] ?? 0
+    if (remaining >= length) {
+      ctx.lineTo(to.x, to.y)
+      remaining -= length
+      continue
+    }
+    const share = length > 0 ? remaining / length : 0
+    ctx.lineTo(from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share)
+    return
+  }
 }
 
 /**
@@ -229,17 +260,14 @@ export const drawChart = (
   }
 
   for (const item of series) {
-    if (!item.line || item.points.length < 2 || item.lineProgress <= 0) continue
-    const slope = fitK(item.points)
-    if (!(slope > 0)) continue
-    let xEnd = scaleX.max
-    if (slope * xEnd > scaleY.max) xEnd = scaleY.max / slope
-    xEnd *= item.lineProgress
-    ctx.beginPath()
-    ctx.moveTo(xOf(0), yOf(0))
-    ctx.lineTo(xOf(xEnd), yOf(slope * xEnd))
+    if (!item.line || item.points.length < 1 || item.lineProgress <= 0) continue
+    const sorted = [...item.points].sort((a, b) => a.x - b.x || a.y - b.y)
+    const path = [{ x: 0, y: 0 }, ...sorted].map((point) => ({ x: xOf(point.x), y: yOf(point.y) }))
+    tracePath(ctx, path, item.lineProgress)
     ctx.strokeStyle = item.color
     ctx.lineWidth = small ? 2.6 : 3.6
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
     ctx.globalAlpha = 0.85
     ctx.stroke()
     ctx.globalAlpha = 1

@@ -26,7 +26,7 @@ const active = computed(() => props.groups[activeIndex.value])
 /**
  * 读取一组保存下来的描点进度。
  * @param groupId - 组 id
- * @returns 点数和直线进度
+ * @returns 点数和连线进度
  */
 const saved = (groupId: string): PlotProgress =>
   props.progress[groupId] ?? { shown: 0, showLine: false, lineProgress: 0 }
@@ -79,7 +79,7 @@ const singleTag = computed(() => {
  * 一组的完整序列，用于小图和汇总。
  * @param group - 实验组
  * @param index - 颜色下标
- * @returns 带拟合线的序列
+ * @returns 带连线的序列
  */
 const fullSeries = (group: Group, index: number): Series => ({
   name: group.name,

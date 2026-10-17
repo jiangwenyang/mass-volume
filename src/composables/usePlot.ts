@@ -65,7 +65,7 @@ const animatePop = async (groupId: string, mine: number, duration: number): Prom
 }
 
 /**
- * 拟合直线从原点长出。
+ * 连线从原点出发，依次长到各点。
  * @param groupId - 正在出图的组
  * @param mine - 动画记号
  * @returns 没有被打断时为真
@@ -91,7 +91,7 @@ const animateLine = async (groupId: string, mine: number): Promise<boolean> => {
 /**
  * 读取一组的出图进度，没有操作过就是空白。
  * @param groupId - 组 id
- * @returns 已显示的点数和直线进度
+ * @returns 已显示的点数和连线进度
  */
 export const plotOf = (groupId: string): PlotProgress =>
   progress.value[groupId] ?? { shown: 0, showLine: false, lineProgress: 0 }
@@ -146,7 +146,7 @@ export const usePlot = () => {
   }
 
   /**
-   * 较快补完剩余的点，再画出过原点的拟合直线。
+   * 较快补完剩余的点，再画出从原点出发、按体积依次连接各点的折线。
    * @param group - 要出图的组
    */
   const genLine = async (group: Group): Promise<void> => {

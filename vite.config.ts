@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vite'
+import { defineConfig, type ProxyOptions } from 'vite'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -21,6 +21,22 @@ const readServerPort = (): number => {
   }
 }
 
+/**
+ * 生成代理的 configure 钩子，让每次转发都按当前端口找 Rust 服务。
+ * @param scheme - 目标协议
+ * @returns 把 target 换成按请求读取的钩子
+ */
+const followServer =
+  (scheme: 'http' | 'ws'): NonNullable<ProxyOptions['configure']> =>
+  (_proxy, options) => {
+    // http-proxy-3 每次转发都会展开这份 options，getter 因此按请求求值
+    Object.defineProperty(options, 'target', {
+      enumerable: true,
+      configurable: true,
+      get: () => `${scheme}://127.0.0.1:${readServerPort()}`,
+    })
+  }
+
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
@@ -31,12 +47,12 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:3780',
         changeOrigin: true,
-        router: () => `http://127.0.0.1:${readServerPort()}`,
+        configure: followServer('http'),
       },
       '/ws': {
         target: 'ws://127.0.0.1:3780',
         ws: true,
-        router: () => `ws://127.0.0.1:${readServerPort()}`,
+        configure: followServer('ws'),
       },
     },
   },

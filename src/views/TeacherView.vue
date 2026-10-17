@@ -89,7 +89,7 @@ const plotGroup = async (group: Group): Promise<void> => {
 }
 
 /**
- * 补点并生成拟合直线。
+ * 补点并生成从原点出发的连线。
  * @param group - 要出图的组
  */
 const lineGroup = async (group: Group): Promise<void> => {
