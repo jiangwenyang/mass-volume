@@ -16,6 +16,8 @@ export interface Group {
 
 /** 教室里同步的全部数据 */
 export interface RoomState {
+  /** 服务端状态文件的结构版本 */
+  version: number
   groups: Group[]
   nextId: number
   updatedAt: number

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, useTemplateRef, watch } from 'vue'
-import { colorFor } from '../lib/lab'
+import { colorFor, defaultGroupName, groupHasData } from '../lib/lab'
 import type { Group } from '../types'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -27,12 +27,12 @@ watch(open, (visible) => {
 })
 
 /**
- * 让组名列表长度和组数一致。新增的组用「第 N 组」。
+ * 让组名列表长度和组数一致。新增的组用默认组名。
  */
 const syncNames = (): void => {
   const next = names.value.slice(0, count.value)
   while (next.length < count.value) {
-    next.push(`第${next.length + 1}组`)
+    next.push(defaultGroupName(next.length))
   }
   names.value = next
 }
@@ -69,8 +69,7 @@ const commitTypedCount = (): void => {
  * 末尾将被删掉的组里是否已经有数据。
  * @returns 需要教师确认时为真
  */
-const droppingHasData = (): boolean =>
-  props.groups.slice(count.value).some((group) => group.rows.some((row) => row.v != null || row.m != null))
+const droppingHasData = (): boolean => props.groups.slice(count.value).some(groupHasData)
 
 /**
  * 保存分组。会删数据时先在对话框里确认。
@@ -90,7 +89,7 @@ const submit = (): void => {
   <div v-if="open" class="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-6 backdrop-blur-sm" @click.self="open = false">
     <form class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl bg-sheet p-6 shadow-pop" @submit.prevent="submit">
       <h2 class="text-lg font-bold text-ink">分组设置</h2>
-      <p class="mt-1.5 text-sm leading-relaxed text-muted">组数不限，至少 1 组。新组先有 5 行空白，之后可以继续加行。</p>
+      <p class="mt-1.5 text-sm leading-relaxed text-muted">组数不限，至少 1 组。新组先有原点行和 4 行空白，之后可以继续加行。</p>
       <div class="mt-5 flex items-center gap-3">
         <button type="button" class="inline-flex size-11 items-center justify-center rounded-xl bg-primary-soft text-xl font-semibold text-primary transition-colors hover:bg-deep focus-visible:bg-deep" @click="step(-1)">−</button>
         <input

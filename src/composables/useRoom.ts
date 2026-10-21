@@ -265,7 +265,7 @@ export const useRoom = () => {
   }
 
   /**
-   * 载入原型中的 9 组示例。
+   * 载入参考表格中的 9 组示例。
    */
   const loadSample = (): void => {
     send({ type: 'sample' })

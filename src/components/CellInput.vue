@@ -49,7 +49,7 @@ const onInput = (event: Event): void => {
     spellcheck="false"
     class="w-full bg-soft text-center font-semibold text-ink tabular-nums outline-none transition-colors duration-150 placeholder:text-muted/40 hover:bg-deep focus:bg-primary-soft focus:text-primary"
     :class="[
-      large ? 'h-12 touch-manipulation rounded-xl text-lg' : 'h-9 rounded-lg text-[15px]',
+      large ? 'h-12 touch-manipulation rounded-xl text-lg' : 'h-[var(--cell,2.25rem)] rounded-lg text-[15px]',
       flash ? 'motion-safe:animate-cell' : '',
     ]"
     @input="onInput"

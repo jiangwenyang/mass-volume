@@ -16,6 +16,26 @@ export const GROUP_COLORS = [
   '#d946ef',
 ] as const
 
+/** 默认组名，与服务端 state.rs 的 DEFAULT_NAMES 保持一致 */
+const DEFAULT_GROUP_NAMES = [
+  '第1组（铜）',
+  '第2组（铜）',
+  '第3组（铜）',
+  '第4组（铝）',
+  '第5组（铝）',
+  '第6组（铝）',
+  '第7组（木）',
+  '第8组（木）',
+  '第9组（木）',
+] as const
+
+/**
+ * 第 N 组的默认名称。前 9 组带材料，之后是「第 N 组」。
+ * @param index - 组下标，从 0 开始
+ * @returns 默认组名
+ */
+export const defaultGroupName = (index: number): string => DEFAULT_GROUP_NAMES[index] ?? `第${index + 1}组`
+
 /**
  * 给组色加透明度，做浅底标签用。
  * @param color - 六位十六进制颜色
@@ -65,6 +85,20 @@ export const ratioText = (row: Row): string => {
 export const rowFilled = (row: Row): boolean => row.v != null || row.m != null
 
 /**
+ * 第 0 行固定是原点，不可编辑也不可删除。
+ * @param index - 行下标
+ * @returns 是原点行时为真
+ */
+export const isOriginRow = (index: number): boolean => index === 0
+
+/**
+ * 这一组除原点外是否已经写过数。
+ * @param group - 实验组
+ * @returns 有填写时为真
+ */
+export const groupHasData = (group: Group): boolean => group.rows.some((row, index) => !isOriginRow(index) && rowFilled(row))
+
+/**
  * 取出可以描点的数据：体积和质量都大于 0。
  * @param group - 实验组
  * @returns 坐标点，按表格顺序
@@ -80,21 +114,6 @@ export const pointsOf = (group: Group): Point[] =>
  * @returns 有效点数量
  */
 export const validCount = (group: Group): number => pointsOf(group).length
-
-/**
- * 过原点拟合斜率 k = Σxy / Σx²，对应密度 ρ。
- * @param points - 有效点
- * @returns 斜率；没有有效横轴时为 0
- */
-export const fitK = (points: Point[]): number => {
-  let sxy = 0
-  let sxx = 0
-  for (const point of points) {
-    sxy += point.x * point.y
-    sxx += point.x * point.x
-  }
-  return sxx > 0 ? sxy / sxx : 0
-}
 
 /**
  * 把坐标上限收成整齐的刻度。

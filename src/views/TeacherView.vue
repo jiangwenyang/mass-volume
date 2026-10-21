@@ -6,10 +6,11 @@ import ChartStage from '../components/ChartStage.vue'
 import GroupSettingsDialog from '../components/GroupSettingsDialog.vue'
 import GroupTable from '../components/GroupTable.vue'
 import JoinedRail from '../components/JoinedRail.vue'
+import QtyText from '../components/QtyText.vue'
 import TeacherToolbar from '../components/TeacherToolbar.vue'
 import { joinUrl, pageHost, useRoom } from '../composables/useRoom'
 import { usePlot } from '../composables/usePlot'
-import { colorFor, pointsOf, rowFilled } from '../lib/lab'
+import { colorFor, groupHasData, pointsOf } from '../lib/lab'
 import type { Group } from '../types'
 
 type Mode = 'table' | 'single' | 'all' | 'summary'
@@ -68,7 +69,7 @@ const chosenIp = ref(readChosenHost())
 const primaryIp = computed(() => (hosts.value.includes(chosenIp.value) ? chosenIp.value : (hosts.value[0] ?? '')))
 const url = computed(() => (primaryIp.value ? joinUrl(primaryIp.value) : ''))
 const joinedTotal = computed(() => Object.values(joined.value).filter((count) => count > 0).length)
-const hasAnyData = computed(() => groups.value.some((group) => group.rows.some(rowFilled)))
+const hasAnyData = computed(() => groups.value.some(groupHasData))
 
 watch(
   groups,
@@ -199,7 +200,7 @@ const runConfirmed = (): void => {
         </span>
         <div class="min-w-0">
           <h1 class="truncate text-[1.6rem] leading-tight font-bold text-ink">探究物质的质量与体积的关系</h1>
-          <p class="mt-0.5 text-sm text-muted">m–V 图像 · 分组实验</p>
+          <p class="mt-0.5 text-sm text-muted"><QtyText text="*m*–*V* 图像 · 分组实验" /></p>
         </div>
       </div>
       <div class="ml-auto flex shrink-0 items-center gap-3">
@@ -254,10 +255,17 @@ const runConfirmed = (): void => {
     <div v-else class="flex min-h-0 flex-1">
       <aside
         v-show="mode === 'table' || mode === 'single'"
-        class="min-h-0 overflow-y-auto px-5 pt-2 pb-5 motion-safe:transition-[width] motion-safe:duration-200"
-        :class="mode === 'table' ? 'w-full' : 'w-[34%] min-w-[300px] max-w-[440px] pr-3'"
+        class="min-h-0 overflow-y-auto px-5 motion-safe:transition-[width] motion-safe:duration-200"
+        :class="mode === 'table' ? 'w-full pt-1 pb-3 [container-type:size]' : 'w-[34%] min-w-[300px] max-w-[440px] pt-2 pr-3 pb-5'"
       >
-        <div :class="mode === 'table' ? 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-3'">
+        <!-- --cell 按可用高度把 3 行卡片（每张 6.8 个格高 + 28px，行距 8px）塞进一屏 -->
+        <div
+          :class="
+            mode === 'table'
+              ? 'grid grid-cols-1 gap-x-3 gap-y-2 [--cell:clamp(1.125rem,calc((100cqh_-_6.375rem)_/_20.4),2.5rem)] md:grid-cols-2 lg:grid-cols-3'
+              : 'grid gap-3'
+          "
+        >
           <GroupTable
             v-for="(group, index) in groups"
             :key="group.id"
@@ -329,7 +337,7 @@ const runConfirmed = (): void => {
       <div class="w-full max-w-md rounded-3xl bg-sheet p-6 shadow-pop">
         <h2 class="text-lg font-bold text-ink">{{ confirmKind === 'reset' ? '清空全部数据？' : '载入示例数据？' }}</h2>
         <p class="mt-2 text-sm leading-relaxed text-muted">
-          {{ confirmKind === 'reset' ? '各组已经填写的体积和质量会被清掉，分组和行数还在。' : '会换成原型里的 9 组数据，当前填写会被覆盖。' }}
+          {{ confirmKind === 'reset' ? '各组已经填写的体积和质量会被清掉，分组、行数和原点还在。' : '会换成参考表格里铜、铝、木各 3 组的数据，当前填写会被覆盖。' }}
         </p>
         <div class="mt-6 flex justify-end gap-2">
           <button type="button" class="h-11 rounded-xl px-4 text-sm font-medium text-muted transition-colors hover:bg-soft focus-visible:bg-soft" @click="confirmKind = null">

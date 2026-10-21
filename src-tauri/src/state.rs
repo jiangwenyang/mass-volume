@@ -8,10 +8,38 @@ use serde::{Deserialize, Serialize};
 
 /// 单组最多行数。实验不会接近这个数，用来挡住异常的连续添加。
 pub const MAX_ROWS: usize = 200;
-/// 新建组时的空白行数。
+/// 新建组时的行数，含第 0 行原点。
 pub const DEFAULT_ROWS: usize = 5;
 /// 第一次打开客户端时的组数。
-pub const DEFAULT_GROUPS: usize = 6;
+pub const DEFAULT_GROUPS: usize = 9;
+/// 状态文件的结构版本。读到更旧的文件时整体换成新示例，旧分组和旧示例不再沿用。
+pub const STATE_VERSION: u32 = 3;
+
+/// 默认组名，与参考表格的铜、铝、木三种材料各 3 组对应。
+const DEFAULT_NAMES: [&str; DEFAULT_GROUPS] = [
+    "第1组（铜）",
+    "第2组（铜）",
+    "第3组（铜）",
+    "第4组（铝）",
+    "第5组（铝）",
+    "第6组（铝）",
+    "第7组（木）",
+    "第8组（木）",
+    "第9组（木）",
+];
+
+/// 参考表格（探究物质质量与体积的关系 20261012.xlsx）里各组的体积与质量，首行为原点。
+const SAMPLE: [([f64; DEFAULT_ROWS], [f64; DEFAULT_ROWS]); DEFAULT_GROUPS] = [
+    ([0.0, 6.0, 8.0, 10.0, 20.0], [0.0, 50.26, 67.14, 83.99, 168.67]),
+    ([0.0, 6.0, 10.0, 12.0, 20.0], [0.0, 50.31, 83.95, 100.86, 167.66]),
+    ([0.0, 6.0, 12.0, 14.0, 20.0], [0.0, 50.33, 100.64, 117.39, 167.76]),
+    ([0.0, 6.0, 8.0, 10.0, 20.0], [0.0, 16.52, 22.05, 28.39, 56.04]),
+    ([0.0, 6.0, 10.0, 12.0, 20.0], [0.0, 17.0, 28.12, 34.09, 56.32]),
+    ([0.0, 6.0, 12.0, 14.0, 20.0], [0.0, 17.09, 34.41, 40.13, 56.67]),
+    ([0.0, 6.0, 8.0, 10.0, 20.0], [0.0, 3.29, 4.22, 5.36, 10.8]),
+    ([0.0, 6.0, 10.0, 12.0, 20.0], [0.0, 3.13, 5.18, 6.63, 9.87]),
+    ([0.0, 6.0, 12.0, 14.0, 20.0], [0.0, 3.18, 6.65, 7.43, 10.0]),
+];
 
 /// 一行体积与质量。空单元格用 null。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -33,6 +61,9 @@ pub struct Group {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RoomState {
+    /// 旧文件没有这个字段，读出来是 0。
+    #[serde(default)]
+    pub version: u32,
     pub groups: Vec<Group>,
     #[serde(default)]
     pub next_id: u32,
@@ -51,6 +82,7 @@ pub enum StateError {
 impl Default for RoomState {
     fn default() -> Self {
         let mut state = Self {
+            version: STATE_VERSION,
             groups: Vec::new(),
             next_id: 1,
             updated_at: 0,
@@ -62,7 +94,7 @@ impl Default for RoomState {
 }
 
 impl RoomState {
-    /// 从磁盘读取状态。文件缺失或损坏时使用默认房间。
+    /// 从磁盘读取状态。文件缺失或损坏时使用默认房间；版本过旧时换成新示例并立即写回。
     ///
     /// # 参数
     /// - `path` - `state.json` 路径
@@ -72,8 +104,14 @@ impl RoomState {
             return Self::default();
         };
         match serde_json::from_str::<RoomState>(&text) {
-            Ok(mut state) => {
+            Ok(mut state) if state.version >= STATE_VERSION => {
                 state.repair();
+                state
+            }
+            Ok(_) => {
+                let mut state = Self::default();
+                state.load_sample();
+                state.save(path);
                 state
             }
             Err(_) => Self::default(),
@@ -112,6 +150,9 @@ impl RoomState {
         value: Option<f64>,
     ) -> Result<(), StateError> {
         let value = sanitize(value)?;
+        if row == 0 {
+            return Err(StateError::Invalid("第 0 行是原点，体积和质量固定为 0".into()));
+        }
         let group = self
             .group_mut(group_id)
             .ok_or_else(|| StateError::Invalid("没有这一组".into()))?;
@@ -142,7 +183,7 @@ impl RoomState {
         Ok(())
     }
 
-    /// 删除一行。每组至少保留一行。
+    /// 删除一行。第 0 行原点不能删，每组至少保留一行。
     ///
     /// # 参数
     /// - `group_id` - 组 id
@@ -151,6 +192,9 @@ impl RoomState {
         let group = self
             .group_mut(group_id)
             .ok_or_else(|| StateError::Invalid("没有这一组".into()))?;
+        if row == 0 {
+            return Err(StateError::Invalid("原点行不能删除".into()));
+        }
         if group.rows.len() <= 1 {
             return Err(StateError::Invalid("至少保留一行".into()));
         }
@@ -166,7 +210,7 @@ impl RoomState {
     /// # 参数
     /// - `count` - 目标组数，至少 1 组
     /// - `force` - 为真时允许删掉末尾已填写的组
-    /// - `names` - 与目标组数对齐的名称；缺省时保留原名或使用「第 N 组」
+    /// - `names` - 与目标组数对齐的名称；缺省时保留原名或使用默认组名
     pub fn set_groups(
         &mut self,
         count: usize,
@@ -200,38 +244,29 @@ impl RoomState {
         Ok(())
     }
 
-    /// 清空全部单元格，保留分组、组名和行数。
+    /// 清空全部单元格，保留分组、组名、行数和原点。
     pub fn reset(&mut self) {
         for group in &mut self.groups {
             for row in &mut group.rows {
                 row.v = None;
                 row.m = None;
             }
+            if let Some(first) = group.rows.first_mut() {
+                *first = origin_row();
+            }
         }
     }
 
-    /// 载入原型里的 9 组走台数据。
+    /// 载入参考表格里的 9 组数据，组名一并换回默认。
     pub fn load_sample(&mut self) {
         self.groups.clear();
         self.next_id = 1;
-        let volumes = [0.0, 6.0, 8.0, 10.0, 12.0];
-        let masses = [
-            [0.0, 50.4, 67.4, 84.4, 100.6],
-            [0.0, 50.4, 67.4, 84.4, 100.6],
-            [0.0, 50.4, 67.4, 84.4, 100.6],
-            [0.0, 46.6, 62.2, 77.2, 93.2],
-            [0.0, 46.6, 62.2, 77.2, 93.2],
-            [0.0, 46.4, 62.0, 77.2, 93.2],
-            [0.0, 17.0, 22.0, 27.4, 32.4],
-            [0.0, 16.8, 21.8, 27.0, 32.6],
-            [0.0, 17.0, 21.6, 27.2, 32.4],
-        ];
-        for mass in masses {
+        for (volumes, masses) in SAMPLE {
             let index = self.groups.len();
             let mut group = self.spawn_group(index);
             group.rows = volumes
                 .iter()
-                .zip(mass)
+                .zip(masses)
                 .map(|(v, m)| Row { v: Some(*v), m: Some(m) })
                 .collect();
             self.groups.push(group);
@@ -252,10 +287,12 @@ impl RoomState {
     fn spawn_group(&mut self, index: usize) -> Group {
         let id_number = self.next_id.max(1);
         self.next_id = id_number.saturating_add(1);
+        let mut rows = vec![empty_row(); DEFAULT_ROWS];
+        rows[0] = origin_row();
         Group {
             id: format!("g{id_number}"),
-            name: format!("第{}组", index + 1),
-            rows: vec![empty_row(); DEFAULT_ROWS],
+            name: default_name(index),
+            rows,
         }
     }
 
@@ -274,7 +311,7 @@ impl RoomState {
                 max_seen = max_seen.max(number);
             }
             if group.name.trim().is_empty() {
-                group.name = format!("第{}组", index + 1);
+                group.name = default_name(index);
             }
             if group.rows.is_empty() {
                 group.rows.push(empty_row());
@@ -286,6 +323,7 @@ impl RoomState {
                 row.v = sanitize(row.v).ok().flatten();
                 row.m = sanitize(row.m).ok().flatten();
             }
+            group.rows[0] = origin_row();
         }
         if self.next_id <= max_seen {
             self.next_id = max_seen.saturating_add(1);
@@ -293,9 +331,13 @@ impl RoomState {
     }
 }
 
-/// 这一组是否已经写过体积或质量。
+/// 这一组除原点外是否已经写过体积或质量。
 fn group_has_data(group: &Group) -> bool {
-    group.rows.iter().any(|row| row.v.is_some() || row.m.is_some())
+    group
+        .rows
+        .iter()
+        .skip(1)
+        .any(|row| row.v.is_some() || row.m.is_some())
 }
 
 /// 空白行。
@@ -303,11 +345,27 @@ fn empty_row() -> Row {
     Row { v: None, m: None }
 }
 
-/// 去掉空白并限制长度。空名称退回「第 N 组」。
+/// 第 0 行的原点数据。
+fn origin_row() -> Row {
+    Row {
+        v: Some(0.0),
+        m: Some(0.0),
+    }
+}
+
+/// 第 N 组的默认名称。前 9 组带材料，之后是「第 N 组」。
+fn default_name(index: usize) -> String {
+    DEFAULT_NAMES
+        .get(index)
+        .map(|name| (*name).to_string())
+        .unwrap_or_else(|| format!("第{}组", index + 1))
+}
+
+/// 去掉空白并限制长度。空名称退回默认组名。
 fn clean_name(name: &str, index: usize) -> String {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        return format!("第{}组", index + 1);
+        return default_name(index);
     }
     trimmed.chars().take(20).collect()
 }
@@ -345,7 +403,7 @@ mod tests {
     #[test]
     fn shrink_asks_before_dropping_filled_groups() {
         let mut state = RoomState::default();
-        state.patch("g6", 0, "v", Some(1.0)).unwrap();
+        state.patch("g6", 1, "v", Some(1.0)).unwrap();
         let error = state.set_groups(5, false, None).unwrap_err();
         assert!(matches!(error, StateError::NeedsConfirm(_)));
         assert_eq!(state.groups.len(), DEFAULT_GROUPS);
@@ -354,21 +412,61 @@ mod tests {
     }
 
     #[test]
-    fn remove_keeps_the_last_row() {
+    fn remove_keeps_the_origin_row() {
         let mut state = RoomState::default();
         let id = state.groups[0].id.clone();
         while state.groups[0].rows.len() > 1 {
-            state.remove_row(&id, 0).unwrap();
+            state.remove_row(&id, 1).unwrap();
         }
         let error = state.remove_row(&id, 0).unwrap_err();
         assert!(matches!(error, StateError::Invalid(_)));
+        assert_eq!(state.groups[0].rows[0], origin_row());
     }
 
     #[test]
     fn patch_rejects_negative() {
         let mut state = RoomState::default();
-        let error = state.patch("g1", 0, "m", Some(-1.0)).unwrap_err();
+        let error = state.patch("g1", 1, "m", Some(-1.0)).unwrap_err();
         assert!(matches!(error, StateError::Invalid(_)));
+    }
+
+    #[test]
+    fn origin_row_is_fixed() {
+        let mut state = RoomState::default();
+        assert_eq!(state.groups[0].rows[0], origin_row());
+        let error = state.patch("g1", 0, "v", Some(3.0)).unwrap_err();
+        assert!(matches!(error, StateError::Invalid(_)));
+        state.patch("g1", 1, "v", Some(6.0)).unwrap();
+        state.reset();
+        assert_eq!(state.groups[0].rows[0], origin_row());
+        assert_eq!(state.groups[0].rows[1].v, None);
+    }
+
+    #[test]
+    fn default_groups_carry_material_names() {
+        let state = RoomState::default();
+        assert_eq!(state.groups.len(), 9);
+        assert_eq!(state.groups[0].name, "第1组（铜）");
+        assert_eq!(state.groups[3].name, "第4组（铝）");
+        assert_eq!(state.groups[8].name, "第9组（木）");
+        assert!(!state.groups.iter().any(group_has_data));
+    }
+
+    #[test]
+    fn old_files_are_replaced_by_sample() {
+        let dir = std::env::temp_dir().join(format!("physics-lab-test-{}", now_ms()));
+        let path = dir.join("state.json");
+        fs::create_dir_all(&dir).unwrap();
+        let old = r#"{"groups":[{"id":"g1","name":"第1组","rows":[{"v":6.0,"m":50.4}]}],"nextId":2,"updatedAt":0}"#;
+        fs::write(&path, old).unwrap();
+        let state = RoomState::load(&path);
+        assert_eq!(state.version, STATE_VERSION);
+        assert_eq!(state.groups.len(), 9);
+        assert_eq!(state.groups[0].name, "第1组（铜）");
+        assert_eq!(state.groups[0].rows[1].m, Some(50.26));
+        let saved: RoomState = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(saved.version, STATE_VERSION);
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -386,6 +484,8 @@ mod tests {
         let mut state = RoomState::default();
         state.load_sample();
         assert_eq!(state.groups.len(), 9);
-        assert_eq!(state.groups[0].rows[1].m, Some(50.4));
+        assert_eq!(state.groups[0].rows[1].m, Some(50.26));
+        assert_eq!(state.groups[8].rows[4], Row { v: Some(20.0), m: Some(10.0) });
+        assert!(state.groups.iter().all(|group| group.rows[0] == origin_row()));
     }
 }
