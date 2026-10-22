@@ -62,6 +62,7 @@ const confirmRemove = (): void => {
   <article
     class="overflow-hidden rounded-2xl bg-sheet shadow-card motion-safe:transition-shadow"
     :class="active ? 'shadow-[0_10px_28px_rgb(47_107_255/0.14)]' : ''"
+    :style="large ? undefined : { fontSize: 'min(15px, calc(var(--cell, 2.25rem) * 0.5))', lineHeight: 1 }"
     @click="emit('select')"
   >
     <header
@@ -78,7 +79,7 @@ const confirmRemove = (): void => {
         >
           <i class="rounded-full" :class="large ? 'size-2.5' : 'size-2'" :style="{ background: color }" />
         </span>
-        <h2 class="min-w-0 truncate font-bold text-ink" :class="large ? 'text-xl' : 'text-base'">
+        <h2 class="min-w-0 truncate font-bold text-ink" :class="large ? 'text-xl' : 'leading-none'">
           {{ group.name }}
         </h2>
       </div>
@@ -119,7 +120,7 @@ const confirmRemove = (): void => {
     <div :class="large ? 'px-4 pb-4' : 'overflow-x-auto px-2.5 pb-2'">
       <table
         class="w-full border-separate text-center tabular-nums"
-        :class="large ? 'border-spacing-y-1 text-lg' : 'border-spacing-y-0.5 text-[15px] leading-none'"
+        :class="large ? 'border-spacing-y-1 text-lg' : 'border-spacing-y-0.5 leading-none'"
       >
         <thead>
           <tr class="text-muted">
@@ -128,7 +129,7 @@ const confirmRemove = (): void => {
               :key="column"
               class="sticky top-0 z-10 bg-sheet whitespace-nowrap"
               :class="[
-                large ? 'py-3 text-base' : 'h-[calc(var(--cell,2.25rem)*0.8)] text-xs',
+                large ? 'py-3 text-base' : 'h-[calc(var(--cell,2.25rem)*0.8)] overflow-hidden leading-none',
                 index === 0 ? 'w-[14%]' : index < 3 ? 'w-[25%]' : '',
                 index === 3 ? 'font-bold text-result' : 'font-medium',
               ]"
@@ -175,7 +176,7 @@ const confirmRemove = (): void => {
                 <span
                   v-if="ratioText(row)"
                   class="inline-flex items-center justify-center rounded-full bg-result-soft font-bold text-result"
-                  :class="large ? 'h-10 min-w-20 px-3 text-xl' : 'h-[calc(var(--cell,2.25rem)_-_0.25rem)] min-w-14 px-2 text-[15px]'"
+                  :class="large ? 'h-10 min-w-20 px-3 text-xl' : 'h-[calc(var(--cell,2.25rem)_-_0.25rem)] min-w-14 px-2'"
                 >
                   {{ ratioText(row) }}
                 </span>

@@ -4,6 +4,7 @@ import { Maximize2, Minimize2 } from '@lucide/vue'
 import ChartCanvas from './ChartCanvas.vue'
 import GroupPicker from './GroupPicker.vue'
 import MarkerIcon from './MarkerIcon.vue'
+import { boardColumns } from '../lib/board'
 import { FULL_PLOT, groupChart } from '../lib/groupChart'
 import { colorFor, sharedLimits, tint } from '../lib/lab'
 import { markerOf } from '../lib/markers'
@@ -40,10 +41,10 @@ const shown = computed(() => {
 const focused = computed(() => shown.value.length === 1 && shown.value[0]?.group.id === focusId.value)
 
 /** 图少时放大：1 张占满，2～3 张一行，4 张 2×2，更多时每行 3 张 */
-const columns = computed(() => {
-  const count = shown.value.length
-  return count === 4 ? 2 : Math.min(Math.max(count, 1), 3)
-})
+const columns = computed(() => boardColumns(shown.value.length))
+
+/** 行数跟着列数走，每张图分到的高度相同，全部留在这一屏里 */
+const chartRows = computed(() => Math.max(1, Math.ceil(shown.value.length / columns.value)))
 
 // 勾选变化后退出单独显示，直接看到新的组合
 watch(hidden, () => {
@@ -66,15 +67,18 @@ const toggleFocus = (id: string): void => {
     <p v-if="!shown.length" class="grid flex-1 place-items-center rounded-2xl bg-sheet text-lg text-muted shadow-card">请勾选要显示的组</p>
     <div
       v-else
-      class="grid min-h-0 flex-1 auto-rows-[minmax(13.5rem,1fr)] gap-4 overflow-y-auto"
-      :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+      class="grid min-h-0 flex-1 gap-4 overflow-hidden"
+      :style="{
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${chartRows}, minmax(0, 1fr))`,
+      }"
     >
       <article
         v-for="entry in shown"
         :key="entry.group.id"
         role="button"
         tabindex="0"
-        class="flex min-h-0 cursor-pointer flex-col rounded-2xl bg-sheet shadow-card transition-shadow outline-none hover:shadow-[0_10px_28px_rgb(47_107_255/0.14)] focus-visible:shadow-[0_0_0_3px_rgb(47_107_255/0.35)]"
+        class="flex h-full min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl bg-sheet shadow-card transition-shadow outline-none hover:shadow-[0_10px_28px_rgb(47_107_255/0.14)] focus-visible:shadow-[0_0_0_3px_rgb(47_107_255/0.35)]"
         :class="focused ? 'p-5' : 'p-3.5'"
         :aria-pressed="focused"
         :title="focused ? '再次点击，返回勾选的各组' : '点击单独显示这一组'"
@@ -82,7 +86,7 @@ const toggleFocus = (id: string): void => {
         @keydown.enter.prevent="toggleFocus(entry.group.id)"
         @keydown.space.prevent="toggleFocus(entry.group.id)"
       >
-        <header class="flex items-center gap-2 px-1" :class="focused ? 'mb-3' : 'mb-1.5'">
+        <header class="flex shrink-0 items-center gap-2 px-1" :class="focused ? 'mb-3' : 'mb-1.5'">
           <span
             class="grid shrink-0 place-items-center rounded-full"
             :class="focused ? 'size-6' : 'size-5'"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { QrCode, ScatterChart, Wifi } from '@lucide/vue'
 import QRCode from 'qrcode'
 import ChartStage from '../components/ChartStage.vue'
@@ -10,6 +10,7 @@ import QtyText from '../components/QtyText.vue'
 import TeacherToolbar from '../components/TeacherToolbar.vue'
 import { joinUrl, pageHost, useRoom } from '../composables/useRoom'
 import { usePlot } from '../composables/usePlot'
+import { useTableFit } from '../composables/useTableFit'
 import { colorFor, groupHasData, pointsOf } from '../lib/lab'
 import type { Group } from '../types'
 
@@ -50,6 +51,7 @@ const {
 const { progress, motion, startPlot, genLine, stop } = usePlot()
 
 const mode = ref<Mode>('table')
+const boardRef = useTemplateRef<HTMLElement>('board')
 const activeId = ref('')
 const settingsOpen = ref(false)
 const qrOpen = ref(false)
@@ -58,6 +60,18 @@ const confirmKind = ref<ConfirmKind>(null)
 const hint = ref('')
 
 const groups = computed(() => room.value?.groups ?? [])
+const tableMode = computed(() => mode.value === 'table')
+const { columns: tableColumns, cellPx } = useTableFit(boardRef, groups, tableMode)
+const tableGridStyle = computed(() => {
+  if (!tableMode.value) return undefined
+  const cols = tableColumns.value
+  const rows = Math.ceil(groups.value.length / cols) || 1
+  return {
+    '--cell': `${cellPx.value}px`,
+    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+  }
+})
 const active = computed(() => groups.value.find((group) => group.id === activeId.value) ?? groups.value[0])
 const activeColor = computed(() => colorFor(Math.max(groups.value.findIndex((group) => group.id === active.value?.id), 0)))
 const hosts = computed(() => {
@@ -189,7 +203,7 @@ const runConfirmed = (): void => {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col bg-paper text-ink">
+  <div class="flex h-full min-h-0 flex-col overflow-hidden bg-paper text-ink">
     <header class="flex shrink-0 items-center gap-6 px-5 pt-4 pb-2">
       <div class="flex min-w-0 items-center gap-3.5">
         <span
@@ -255,20 +269,23 @@ const runConfirmed = (): void => {
     <div v-else class="flex min-h-0 flex-1">
       <aside
         v-show="mode === 'table' || mode === 'single'"
-        class="min-h-0 overflow-y-auto px-5 motion-safe:transition-[width] motion-safe:duration-200"
-        :class="mode === 'table' ? 'w-full pt-1 pb-3 [container-type:size]' : 'w-[34%] min-w-[300px] max-w-[440px] pt-2 pr-3 pb-5'"
+        class="min-h-0 px-5 motion-safe:transition-[width] motion-safe:duration-200"
+        :class="
+          mode === 'table'
+            ? 'flex w-full flex-col overflow-hidden pt-1 pb-3'
+            : 'w-[34%] min-w-[300px] max-w-[440px] overflow-y-auto pt-2 pr-3 pb-5'
+        "
       >
-        <!-- --cell 按可用高度把 3 行卡片（每张 6.8 个格高 + 28px，行距 8px）塞进一屏 -->
         <div
-          :class="
-            mode === 'table'
-              ? 'grid grid-cols-1 gap-x-3 gap-y-2 [--cell:clamp(1.125rem,calc((100cqh_-_6.375rem)_/_20.4),2.5rem)] md:grid-cols-2 lg:grid-cols-3'
-              : 'grid gap-3'
-          "
+          ref="board"
+          class="grid"
+          :class="mode === 'table' ? 'h-full min-h-0 flex-1 gap-x-3 gap-y-2 overflow-hidden' : 'gap-3'"
+          :style="tableGridStyle"
         >
           <GroupTable
             v-for="(group, index) in groups"
             :key="group.id"
+            :class="mode === 'table' ? 'h-full min-h-0' : undefined"
             :group="group"
             :color="colorFor(index)"
             :active="group.id === activeId"

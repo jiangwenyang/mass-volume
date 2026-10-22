@@ -44,12 +44,15 @@ pub fn run() {
                 format!("http://127.0.0.1:{port}/")
             };
             let parsed = url.parse().map_err(std::io::Error::other)?;
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(parsed))
+            // 投影默认铺满屏幕。Esc 退出全屏后回到最大化窗口。
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(parsed))
                 .title("探究物质的质量与体积的关系")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(960.0, 640.0)
                 .maximized(true)
+                .fullscreen(true)
                 .build()?;
+            window.set_fullscreen(true)?;
             Ok(())
         })
         .run(tauri::generate_context!())
