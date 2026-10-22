@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
-import { QrCode, ScatterChart, Wifi } from '@lucide/vue'
+import { Power, QrCode, ScatterChart, Wifi } from '@lucide/vue'
 import QRCode from 'qrcode'
 import ChartStage from '../components/ChartStage.vue'
 import GroupSettingsDialog from '../components/GroupSettingsDialog.vue'
@@ -58,6 +58,27 @@ const qrOpen = ref(false)
 const qrImage = ref('')
 const confirmKind = ref<ConfirmKind>(null)
 const hint = ref('')
+
+/**
+ * 只有 Windows 上的桌面窗口需要退出按钮。平板浏览器没有这个对象，也不该被关掉。
+ * @returns 当前页面跑在 Windows 的 Tauri 窗口里时为 true
+ */
+const windowsDesktop = (): boolean =>
+  '__TAURI_INTERNALS__' in window && /Windows/i.test(navigator.userAgent)
+
+const showQuit = windowsDesktop()
+
+/**
+ * 关掉教师窗口。窗口关闭后进程退出。
+ */
+const quitApp = async (): Promise<void> => {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    await getCurrentWindow().close()
+  } catch {
+    hint.value = '没能关闭，请再点一次退出'
+  }
+}
 
 const groups = computed(() => room.value?.groups ?? [])
 const tableMode = computed(() => mode.value === 'table')
@@ -241,6 +262,15 @@ const runConfirmed = (): void => {
             <span class="block text-xs font-medium text-primary">平板扫码填写</span>
             <span class="block truncate text-sm font-semibold text-ink">{{ url || '正在获取局域网地址' }}</span>
           </span>
+        </button>
+        <button
+          v-if="showQuit"
+          type="button"
+          class="inline-flex h-11 items-center gap-1.5 rounded-xl bg-sheet px-4 text-sm font-semibold whitespace-nowrap text-ink shadow-card transition-colors hover:bg-result-soft hover:text-result focus-visible:bg-result-soft focus-visible:text-result"
+          @click="quitApp"
+        >
+          <Power class="size-4" />
+          退出
         </button>
       </div>
     </header>
